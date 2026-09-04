@@ -15,7 +15,6 @@ import Toast from "./components/Toast";
 import PageLoader from "./components/PageLoader";
 import SplashScreen from "./components/SplashScreen";
 import MoreSheet from "./components/MoreSheet";
-import FireworksCanvas from "./components/FireworksCanvas";
 import { getCategoryById, getMenuItemById } from "./lib/api";
 import { useEffect } from "react";
 
@@ -135,11 +134,6 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-cream">
-      {/* Ambient fireworks — subtle, fixed over the whole site */}
-      <div className="pointer-events-none fixed inset-0 z-[60]">
-        <FireworksCanvas density={2600} opacity={0.5} maxRockets={1} />
-      </div>
-
       <Header onAdminTrigger={() => setShowAdmin(true)} activePage={activePage} onNavigate={goTo} />
 
       <Suspense fallback={<PageLoader />}>
