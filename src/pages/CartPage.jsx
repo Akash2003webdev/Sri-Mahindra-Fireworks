@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import ConfirmOrderModal from "../components/ConfirmOrderModal";
-import { orderTypes } from "../lib/data";
+import { orderTypes, minOrderAmount } from "../lib/data";
 import { buildOrderMessage, sendWhatsAppMessage } from "../lib/whatsapp";
 import { submitOrder, validateCoupon } from "../lib/api";
 import { useSEO } from "../lib/seo";
@@ -53,6 +53,21 @@ export default function CartPage({ onToast, onOrderSent }) {
 
   const discountAmount = appliedCoupon?.discount_amount || 0;
   const payableTotal = Math.max(total - discountAmount, 0);
+
+  // Item-level MRP savings — each cart item optionally carries its own
+  // `mrp` (the variant's actual_rate) and `discountPercent` from the DB,
+  // so we can show "MRP ₹X → Our Price ₹Y" the same way everywhere the
+  // order gets reviewed (cart list, summary, confirm modal).
+  const mrpTotal = items.reduce(
+    (sum, i) => sum + (Number(i.mrp) > i.price ? Number(i.mrp) : i.price) * i.quantity,
+    0,
+  );
+  const itemDiscountTotal = Math.max(mrpTotal - total, 0);
+
+  // Minimum order value — checked against the basket subtotal (before any
+  // coupon discount), so a coupon can't be used to duck under the minimum.
+  const belowMinOrder = minOrderAmount > 0 && total < minOrderAmount;
+  const amountToMin = Math.max(minOrderAmount - total, 0);
 
   async function handleApplyCoupon() {
     if (!couponInput.trim()) return;
@@ -121,6 +136,7 @@ export default function CartPage({ onToast, onOrderSent }) {
 
   const canOrder =
     items.length > 0 &&
+    !belowMinOrder &&
     name.trim() &&
     phone.trim().length >= 10 &&
     (orderType !== "Home Delivery" || address.trim());
@@ -243,6 +259,18 @@ export default function CartPage({ onToast, onOrderSent }) {
                   )}
                   <div className="text-base font-extrabold text-[#ff5e14] mt-1">
                     ₹{item.price}
+                    {Number(item.mrp) > item.price && (
+                      <>
+                        <span className="ml-2 text-xs font-semibold text-gray-400 line-through">
+                          ₹{item.mrp}
+                        </span>
+                        {item.discountPercent > 0 && (
+                          <span className="ml-1.5 text-[10px] font-bold text-emerald-600 align-middle">
+                            {item.discountPercent}% off
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -283,6 +311,17 @@ export default function CartPage({ onToast, onOrderSent }) {
 
         {/* Premium Checkout Side Panel */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] p-5 md:p-6 space-y-6 lg:sticky lg:top-28 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
+          {/* Minimum Order Notice */}
+          {belowMinOrder && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200/80 rounded-2xl px-4 py-3">
+              <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold text-amber-800 leading-relaxed">
+                Minimum order value is ₹{minOrderAmount}. Add ₹{amountToMin}{" "}
+                more worth of items to place your order.
+              </p>
+            </div>
+          )}
+
           {/* Order Type Tabs */}
           <div>
             <label className="text-xs font-bold text-gray-700 tracking-wider uppercase mb-2.5 block px-1">
@@ -461,6 +500,26 @@ export default function CartPage({ onToast, onOrderSent }) {
 
           {/* Desktop Summary Footer */}
           <div className="hidden md:block border-t border-gray-100 pt-4">
+            {itemDiscountTotal > 0 && (
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm font-medium text-gray-400">
+                  Total MRP
+                </span>
+                <span className="font-semibold text-sm text-gray-400 line-through">
+                  ₹{mrpTotal}
+                </span>
+              </div>
+            )}
+            {itemDiscountTotal > 0 && (
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm font-medium text-emerald-600">
+                  Item Discount
+                </span>
+                <span className="font-bold text-base text-emerald-600">
+                  − ₹{itemDiscountTotal}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-sm font-medium text-gray-500">
                 Basket Subtotal
@@ -513,7 +572,13 @@ export default function CartPage({ onToast, onOrderSent }) {
             <span className="font-display font-black text-xl text-gray-900">
               ₹{payableTotal}
             </span>
-            {discountAmount > 0 && (
+            {itemDiscountTotal > 0 && (
+              <span className="text-[10px] text-emerald-600 font-bold block">
+                Saved ₹{itemDiscountTotal} on MRP
+                {discountAmount > 0 ? ` + ₹${discountAmount} coupon` : ""}
+              </span>
+            )}
+            {itemDiscountTotal === 0 && discountAmount > 0 && (
               <span className="text-[10px] text-emerald-600 font-bold block">
                 Saved ₹{discountAmount} with {appliedCoupon.code}
               </span>
@@ -582,14 +647,33 @@ export default function CartPage({ onToast, onOrderSent }) {
                     x{item.quantity}
                   </span>
                 </span>
-                <span className="font-bold text-gray-800">
-                  ₹{item.price * item.quantity}
+                <span className="text-right">
+                  <span className="font-bold text-gray-800 block">
+                    ₹{item.price * item.quantity}
+                  </span>
+                  {Number(item.mrp) > item.price && (
+                    <span className="text-[10px] text-gray-400 line-through block">
+                      ₹{item.mrp * item.quantity}
+                    </span>
+                  )}
                 </span>
               </div>
             ))}
           </div>
 
           <div className="space-y-1.5 border-t border-gray-200/60 pt-3">
+            {itemDiscountTotal > 0 && (
+              <div className="flex justify-between items-center text-xs text-gray-400 font-semibold">
+                <span>Total MRP</span>
+                <span className="line-through">₹{mrpTotal}</span>
+              </div>
+            )}
+            {itemDiscountTotal > 0 && (
+              <div className="flex justify-between items-center text-xs text-emerald-600 font-bold">
+                <span>Item Discount</span>
+                <span>− ₹{itemDiscountTotal}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center text-xs text-gray-500 font-semibold">
               <span>Subtotal</span>
               <span>₹{total}</span>

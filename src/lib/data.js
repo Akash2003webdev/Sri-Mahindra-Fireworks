@@ -47,7 +47,7 @@ export const legalNotice = {
     "As per Government regulations, firecrackers cannot be sold through instant online checkout. Add your items to the cart and submit — we'll confirm your order and final price over WhatsApp or a phone call within 24 hours.",
 };
 
-export const minOrderAmount = 500; // TODO: set your real minimum order value, or null to hide the strip
+export const minOrderAmount = 3000; // Minimum cart value required to place an order
 
 // Shown as trust/feature cards on the homepage, just under the categories.
 export const whyChooseUs = [

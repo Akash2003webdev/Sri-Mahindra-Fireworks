@@ -14,6 +14,9 @@ import FloatingWhatsApp from "./components/FloatingWhatsApp";
 import Toast from "./components/Toast";
 import PageLoader from "./components/PageLoader";
 import SplashScreen from "./components/SplashScreen";
+import LegalNoticeModal, {
+  hasSeenLegalNotice,
+} from "./components/LegalNoticeModal";
 import MoreSheet from "./components/MoreSheet";
 import { getCategoryById, getMenuItemById } from "./lib/api";
 import { useEffect } from "react";
@@ -225,12 +228,27 @@ function AppShell() {
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [showLegalNotice, setShowLegalNotice] = useState(false);
+
+  function handleSplashFinish() {
+    setShowSplash(false);
+    // Show the mandatory firecracker-sale disclosure the moment the home
+    // page (the "second page", right after the splash) opens — once per
+    // browser session so returning visitors aren't nagged on every visit.
+    if (!hasSeenLegalNotice()) {
+      setShowLegalNotice(true);
+    }
+  }
 
   return (
     <BrowserRouter>
       <CartProvider>
-        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
         <AppShell />
+        <LegalNoticeModal
+          open={showLegalNotice}
+          onClose={() => setShowLegalNotice(false)}
+        />
       </CartProvider>
     </BrowserRouter>
   );

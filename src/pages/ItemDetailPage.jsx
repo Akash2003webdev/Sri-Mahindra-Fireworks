@@ -35,12 +35,12 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
   const [form, setForm] = useState({ name: "", rating: 5, comment: "" });
   const [submitting, setSubmitting] = useState(false);
   const [hoveredStar, setHoveredStar] = useState(0);
-  const [activeImage, setActiveImage] = useState(0);
+  const [activeMedia, setActiveMedia] = useState({ type: "image", index: 0 });
 
   useEffect(() => {
     if (item) getItemReviews(item.id).then(setReviews);
     setVariant(item?.variants?.[0] || null);
-    setActiveImage(0);
+    setActiveMedia({ type: "image", index: 0 });
   }, [item]);
 
   useEffect(() => {
@@ -76,6 +76,8 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
         id: item.id,
         name: item.name,
         price,
+        mrp: hasDiscount ? actualRate : null,
+        discountPercent: hasDiscount ? discountPercent : null,
         variantId: variant?.id ?? null,
         variantName: variant?.name ?? null,
         image: item.images?.[0] || logo,
@@ -97,6 +99,8 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
         id: item.id,
         name: item.name,
         price,
+        mrp: hasDiscount ? actualRate : null,
+        discountPercent: hasDiscount ? discountPercent : null,
         variantId: variant?.id ?? null,
         variantName: variant?.name ?? null,
         image: item.images?.[0] || logo,
@@ -122,15 +126,27 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-14 pt-4 md:pt-8 items-start">
         
-        {/* 1. Image Showcase Area */}
+        {/* 1. Image / Video Showcase Area */}
         <div className="space-y-3">
-          <div className="relative h-72 sm:h-96 md:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.08)] group">
-            <img
-              src={item.images?.[activeImage] || item.images?.[0] || logo}
-              alt={item.name}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <div className="relative h-72 sm:h-96 md:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.08)] group bg-black">
+            {activeMedia.type === "video" ? (
+              <video
+                key={item.videos?.[activeMedia.index]}
+                src={item.videos?.[activeMedia.index]}
+                controls
+                playsInline
+                className="w-full h-full object-contain bg-black"
+              />
+            ) : (
+              <img
+                src={item.images?.[activeMedia.index] || item.images?.[0] || logo}
+                alt={item.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            )}
+            {activeMedia.type === "image" && (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+            )}
 
             <button
               onClick={onBack}
@@ -140,20 +156,40 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
             </button>
           </div>
 
-          {item.images?.length > 1 && (
+          {(item.images?.length > 1 || item.videos?.length > 0) && (
             <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
-              {item.images.map((img, i) => (
+              {item.images?.map((img, i) => (
                 <button
-                  key={img + i}
-                  onClick={() => setActiveImage(i)}
+                  key={`img-${img}-${i}`}
+                  onClick={() => setActiveMedia({ type: "image", index: i })}
                   aria-label={`View photo ${i + 1}`}
                   className={`h-16 w-16 md:h-20 md:w-20 shrink-0 overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
-                    activeImage === i
+                    activeMedia.type === "image" && activeMedia.index === i
                       ? "border-[#730ca8] shadow-md"
                       : "border-transparent opacity-70 hover:opacity-100"
                   }`}
                 >
                   <img src={img} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+
+              {item.videos?.map((vid, i) => (
+                <button
+                  key={`vid-${vid}-${i}`}
+                  onClick={() => setActiveMedia({ type: "video", index: i })}
+                  aria-label={`Play video ${i + 1}`}
+                  className={`relative h-16 w-16 md:h-20 md:w-20 shrink-0 overflow-hidden rounded-2xl border-2 bg-black transition-all duration-300 ${
+                    activeMedia.type === "video" && activeMedia.index === i
+                      ? "border-[#730ca8] shadow-md"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <video src={vid} className="h-full w-full object-cover" muted preload="metadata" />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+                    <span className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center">
+                      <span className="w-0 h-0 border-y-[5px] border-y-transparent border-l-[8px] border-l-[#730ca8] ml-0.5" />
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>

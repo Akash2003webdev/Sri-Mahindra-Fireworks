@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, Heart } from "lucide-react";
+import { Plus, Minus, Heart, PlayCircle } from "lucide-react";
 import Stars from "./Stars";
 import { useCart } from "../context/CartContext";
 
@@ -33,6 +33,11 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
       id: item.id,
       name: item.name,
       price: defaultVariant?.price ?? 0,
+      mrp:
+        Number(defaultVariant?.actual_rate) > Number(defaultVariant?.price)
+          ? Number(defaultVariant.actual_rate)
+          : null,
+      discountPercent: defaultVariant?.discount_percent || null,
       variantId: defaultVariant?.id ?? null,
       variantName: defaultVariant?.name ?? null,
       image: item.images?.[0],
@@ -102,6 +107,13 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
             className={liked ? "fill-primary-600 text-primary-600" : "text-gray-400"}
           />
         </button>
+
+        {/* Video available indicator, bottom-right */}
+        {item.videos?.length > 0 && (
+          <span className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+            <PlayCircle size={14} className="text-white" />
+          </span>
+        )}
       </div>
 
       {/* Card Details */}

@@ -110,6 +110,11 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
         id: item.id,
         name: item.name,
         price: defaultVariant?.price ?? 0,
+        mrp:
+          Number(defaultVariant?.actual_rate) > Number(defaultVariant?.price)
+            ? Number(defaultVariant.actual_rate)
+            : null,
+        discountPercent: defaultVariant?.discount_percent || null,
         variantId: defaultVariant?.id ?? null,
         variantName: defaultVariant?.name ?? null,
         image: item.images?.[0] || logo,

@@ -145,8 +145,13 @@ function OrderStatusCard({ order }) {
                 {it.variantName ? <span className="text-gray-400"> — {it.variantName}</span> : null}
                 <span className="text-gray-400"> × {it.quantity}</span>
               </span>
-              <span className="font-bold text-gold-700 shrink-0">
-                ₹{(it.price ?? 0) * (it.quantity ?? 1)}
+              <span className="font-bold text-gold-700 shrink-0 text-right">
+                <span className="block">₹{(it.price ?? 0) * (it.quantity ?? 1)}</span>
+                {Number(it.mrp) > it.price && (
+                  <span className="block text-[10px] text-gray-400 line-through font-medium">
+                    ₹{it.mrp * it.quantity}
+                  </span>
+                )}
               </span>
             </div>
           ))}

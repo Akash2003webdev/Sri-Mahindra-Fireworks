@@ -20,7 +20,13 @@ export function buildOrderMessage({
   lines.push("*Items:*");
   cartItems.forEach((item) => {
     const variantLabel = item.variantName ? ` (${item.variantName})` : "";
-    lines.push(`• ${item.name}${variantLabel} x${item.quantity} — ₹${item.price * item.quantity}`);
+    const mrpNote =
+      Number(item.mrp) > item.price
+        ? ` (MRP ₹${item.mrp * item.quantity})`
+        : "";
+    lines.push(
+      `• ${item.name}${variantLabel} x${item.quantity} — ₹${item.price * item.quantity}${mrpNote}`,
+    );
     if (item.comboItems?.length) {
       const combo = item.comboItems
         .map((p) => (p.quantity > 1 ? `${p.name} x${p.quantity}` : p.name))
@@ -29,9 +35,18 @@ export function buildOrderMessage({
     }
   });
   const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const mrpTotal = cartItems.reduce(
+    (sum, i) => sum + (Number(i.mrp) > i.price ? Number(i.mrp) : i.price) * i.quantity,
+    0,
+  );
+  const itemDiscountTotal = Math.max(mrpTotal - subtotal, 0);
   const discount = discountAmount || 0;
   const payable = Math.max(subtotal - discount, 0);
   lines.push("");
+  if (itemDiscountTotal > 0) {
+    lines.push(`Total MRP: ₹${mrpTotal}`);
+    lines.push(`Item Discount: − ₹${itemDiscountTotal}`);
+  }
   if (discount > 0) {
     lines.push(`Subtotal: ₹${subtotal}`);
     lines.push(`Coupon Applied: ${couponCode} (− ₹${discount})`);
