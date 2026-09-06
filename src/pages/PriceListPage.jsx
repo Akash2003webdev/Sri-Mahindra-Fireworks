@@ -62,8 +62,13 @@ export default function PriceListPage({ onBack }) {
           ? item.variants
           : [{ id: "default", name: null, price: 0 }];
         variants.forEach((v) => {
+          const actualRate = Number(v.actual_rate ?? 0);
+          const discountPercent = Number(v.discount_percent ?? 0);
+          const hasDiscount = actualRate > Number(v.price ?? 0);
           rows.push([
             v.name ? `${item.name} — ${v.name}` : item.name,
+            hasDiscount ? `Rs.${actualRate}` : "-",
+            hasDiscount ? `${discountPercent}%` : "-",
             `Rs.${v.price}`,
           ]);
         });
@@ -71,7 +76,7 @@ export default function PriceListPage({ onBack }) {
 
       autoTable(doc, {
         startY: y,
-        head: [[category.name, "Price"]],
+        head: [[category.name, "MRP", "Discount", "Net Price"]],
         body: rows,
         theme: "grid",
         headStyles: { fillColor: [204, 8, 34] },
@@ -86,7 +91,7 @@ export default function PriceListPage({ onBack }) {
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 md:px-6 pt-6 pb-28 md:pb-16">
+    <main className="max-w-5xl mx-auto px-4 md:px-8 pt-6 pb-28 md:pb-16">
       {onBack && (
         <button
           onClick={onBack}
@@ -109,7 +114,7 @@ export default function PriceListPage({ onBack }) {
         {!loading && grouped.length > 0 && (
           <button
             onClick={downloadPdf}
-            className="shrink-0 flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs md:text-sm font-bold px-3.5 md:px-4 py-2.5 rounded-xl shadow-md shadow-primary-500/10 transition-all active:scale-95"
+            className="shrink-0 flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary-500/10 transition-all active:scale-95"
           >
             <Download size={15} /> Download PDF
           </button>
@@ -128,33 +133,57 @@ export default function PriceListPage({ onBack }) {
           Price list will be updated soon.
         </p>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-10">
           {grouped.map(({ category, items: catItems }) => (
             <section key={category.id}>
-              <h2 className="font-display font-bold text-lg text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                {category.name}
+              <h2 className="font-display font-bold text-xl text-gray-900 mb-4 pb-2 border-b-2 border-gray-100 flex items-center justify-between">
+                <span>{category.name}</span>
+                <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full">
+                  {catItems.length} items
+                </span>
               </h2>
-              <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
-                {catItems.map((item) =>
-                  (item.variants?.length ? item.variants : [{ id: "default", name: null, price: 0 }]).map(
-                    (v) => (
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {catItems.flatMap((item) => {
+                  const variants = item.variants?.length
+                    ? item.variants
+                    : [{ id: "default", name: null, price: 0 }];
+
+                  return variants.map((v) => {
+                    const actualRate = Number(v.actual_rate ?? 0);
+                    const discountPercent = Number(v.discount_percent ?? 0);
+                    const hasDiscount = actualRate > Number(v.price ?? 0);
+
+                    return (
                       <div
                         key={`${item.id}-${v.id}`}
-                        className="flex items-center justify-between gap-3 px-4 py-3"
+                        className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-gray-200 transition-all"
                       >
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-gray-800 pr-2">
                           {item.name}
                           {v.name ? (
-                            <span className="text-gray-400"> — {v.name}</span>
+                            <span className="text-gray-400 font-normal"> — {v.name}</span>
                           ) : null}
                         </span>
-                        <span className="text-sm font-bold text-gold-700 shrink-0">
-                          ₹{v.price}
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-bold text-gold-700 block">
+                            ₹{v.price}
+                          </span>
+                          {hasDiscount && (
+                            <span className="text-[11px] font-semibold text-gray-400 flex items-center justify-end gap-1.5">
+                              <span className="line-through">₹{actualRate}</span>
+                              {discountPercent > 0 && (
+                                <span className="text-emerald-600 bg-emerald-50 px-1 rounded">
+                                  {discountPercent}% off
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    ),
-                  ),
-                )}
+                    );
+                  });
+                })}
               </div>
             </section>
           ))}

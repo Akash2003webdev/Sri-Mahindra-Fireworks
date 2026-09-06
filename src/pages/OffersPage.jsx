@@ -244,9 +244,9 @@ function OfferCard({ offer, onOrder }) {
 
 export default function OffersPage({ onToast }) {
   useSEO({
-    title: "Gift Boxes | Sri Mahindra Fireworks - Combo Deals & Discounts",
+    title: "Gift Boxes | Mahendra Fancy Crackers - Combo Deals & Discounts",
     description:
-      "Check out ready-made crackers gift boxes and combo deals at Sri Mahindra Fireworks, Sattur — bundled and priced specially.",
+      "Check out ready-made crackers gift boxes at Mahendra Fancy Crackers, Sattur — bundled and priced specially.",
     path: "/offers",
   });
 
@@ -286,7 +286,7 @@ export default function OffersPage({ onToast }) {
           <Sparkles size={14} /> Deals Just For You
         </span>
         <h1 className="font-display font-black text-2xl md:text-4xl text-gray-900 tracking-tight">
-          Gift Boxes & Offers
+          Gift Boxes
         </h1>
         <p className="text-sm text-gray-500 mt-1">
           Ready-made crackers gift boxes bundled and priced specially — order the whole box in one tap.

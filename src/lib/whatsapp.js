@@ -1,6 +1,16 @@
 import { restaurantInfo } from "./data";
 
-export function buildOrderMessage({ cartItems, orderType, tableNumber, mapLocation, address, name, phone }) {
+export function buildOrderMessage({
+  cartItems,
+  orderType,
+  tableNumber,
+  mapLocation,
+  address,
+  name,
+  phone,
+  couponCode,
+  discountAmount,
+}) {
   const lines = [];
   lines.push(`*New Order — ${restaurantInfo.name}*`);
   lines.push(`Order Type: ${orderType}`);
@@ -18,9 +28,17 @@ export function buildOrderMessage({ cartItems, orderType, tableNumber, mapLocati
       lines.push(`   ↳ Combo includes: ${combo}`);
     }
   });
-  const total = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const discount = discountAmount || 0;
+  const payable = Math.max(subtotal - discount, 0);
   lines.push("");
-  lines.push(`*Total: ₹${total}*`);
+  if (discount > 0) {
+    lines.push(`Subtotal: ₹${subtotal}`);
+    lines.push(`Coupon Applied: ${couponCode} (− ₹${discount})`);
+    lines.push(`*Total Payable: ₹${payable}*`);
+  } else {
+    lines.push(`*Total: ₹${subtotal}*`);
+  }
   lines.push("");
   lines.push(`Name: ${name}`);
   lines.push(`Phone: ${phone}`);

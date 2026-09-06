@@ -7,6 +7,7 @@ import {
   Menu,
   ChevronDown,
   User,
+  BadgePercent,
   ShoppingBag,
 } from "lucide-react";
 
@@ -18,7 +19,7 @@ import { restaurantInfo } from "../lib/data";
 const DESKTOP_NAV = [
   { key: "home", label: "Home", icon: Home },
   { key: "menu", label: "Products", icon: Sparkles, isButton: true },
-  { key: "offers", label: "Gift Box", icon: Gift },
+  { key: "offer", label: "Offers", icon: BadgePercent },
 ];
 
 const ALL_DRAWER_LINKS = [...DESKTOP_NAV, ...MORE_LINKS];
@@ -68,8 +69,11 @@ export default function Header({ onAdminTrigger, activePage, onNavigate }) {
         <div className="flex w-max animate-[headerMarquee_28s_linear_infinite] gap-10 whitespace-nowrap px-4 text-[11px] font-medium tracking-wide text-white sm:text-xs">
           {Array.from({ length: 2 }).map((_, i) => (
             <span key={i}>
-              🎆 {restaurantInfo.name.toUpperCase()} — DIWALI 2026 BOOKING OPEN! &nbsp;•&nbsp;
-              In compliance with Supreme Court orders, this site only provides price estimates for reference — no instant online sale of firecrackers. &nbsp;•&nbsp; Call {restaurantInfo.phone} for orders.
+              🎆 {restaurantInfo.name.toUpperCase()} — DIWALI 2026 BOOKING OPEN!
+              &nbsp;•&nbsp; In compliance with Supreme Court orders, this site
+              only provides price estimates for reference — no instant online
+              sale of firecrackers. &nbsp;•&nbsp; Call {restaurantInfo.phone}{" "}
+              for orders.
             </span>
           ))}
         </div>
@@ -78,7 +82,6 @@ export default function Header({ onAdminTrigger, activePage, onNavigate }) {
       {/* Main Header Navbar */}
       <header className="sticky top-0 z-50 flex flex-col bg-white shadow-sm border-b border-gray-100">
         <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-4 py-4 sm:px-6 md:px-8 lg:px-10">
-          
           {/* Left: Brand / Logo + Shop Name */}
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
@@ -108,12 +111,12 @@ export default function Header({ onAdminTrigger, activePage, onNavigate }) {
                 alt={restaurantInfo.name}
                 className="h-12 w-auto object-contain sm:h-14 md:h-16 lg:h-16"
               />
-              
+
               {/* Shop Name visible on both Mobile & Desktop */}
               <div className="flex min-w-0 flex-col justify-center">
                 <h1 className="truncate font-display text-[14px] sm:text-[16px] font-black tracking-tight leading-tight">
-                  <span className="text-gray-900">Sri Mahindra </span>
-                  <span className="text-[#730ca8]">Fireworks</span>
+                  <span className="text-gray-900">Mahendra Fancy </span>
+                  <span className="text-[#730ca8]">Crackers</span>
                 </h1>
                 <p className="mt-0.5 truncate text-[7.5px] font-bold uppercase tracking-[0.2em] text-gray-500 sm:text-[9px]">
                   Fireworks & Crackers
@@ -292,8 +295,8 @@ export default function Header({ onAdminTrigger, activePage, onNavigate }) {
                   />
                   <div className="flex min-w-0 flex-col justify-center">
                     <h1 className="truncate font-display text-[15px] font-black tracking-tight">
-                      <span className="text-gray-900">Sri Mahindra </span>
-                      <span className="text-[#730ca8]">Fireworks</span>
+                      <span className="text-gray-900">Mahendra Fancy </span>
+                      <span className="text-[#730ca8]">Crackers</span>
                     </h1>
                   </div>
                 </button>
@@ -334,7 +337,14 @@ export default function Header({ onAdminTrigger, activePage, onNavigate }) {
                       }
                     `}
                   >
-                    {Icon && <Icon size={18} className={active || isButton ? "text-white" : "text-gray-400"} />}
+                    {Icon && (
+                      <Icon
+                        size={18}
+                        className={
+                          active || isButton ? "text-white" : "text-gray-400"
+                        }
+                      />
+                    )}
                     {label}
                   </button>
                 );

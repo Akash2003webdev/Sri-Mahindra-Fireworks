@@ -6,9 +6,9 @@ import { useSEO } from "../lib/seo";
 
 export default function ReviewsPage({ onToast }) {
   useSEO({
-    title: "Customer Reviews | Sri Mahindra Fireworks",
+    title: "Customer Reviews | Mahendra Fancy Crackers",
     description:
-      "Read customer reviews for Sri Mahindra Fireworks, Sattur. Share your own experience with our crackers and service.",
+      "Read customer reviews for Mahendra Fancy Crackers, Sattur. Share your own experience with our crackers and service.",
     path: "/reviews",
   });
 

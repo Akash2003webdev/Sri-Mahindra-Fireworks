@@ -1,4 +1,4 @@
-# Sri Mahindra Fireworks — Website
+# Mahendra Fancy Crackers — Website
 
 React + Vite + Tailwind, Supabase backend. Converted from the food-ordering
 codebase to a crackers/fireworks shop site — same layout & structure, new

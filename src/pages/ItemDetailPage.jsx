@@ -20,11 +20,11 @@ import logo from "../assets/placeholder.png";
 export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
   useSEO({
     title: item
-      ? `${item.name} | Sri Mahindra Fireworks`
-      : "Product | Sri Mahindra Fireworks",
+      ? `${item.name} | Mahendra Fancy Crackers`
+      : "Product | Mahendra Fancy Crackers",
     description: item
-      ? `${item.name}${item.description ? " - " + item.description : ""} — order online from Sri Mahindra Fireworks, Sattur. Home delivery & store pickup available.`
-      : "Order this item online from Sri Mahindra Fireworks, Sattur.",
+      ? `${item.name}${item.description ? " - " + item.description : ""} — order online from Mahendra Fancy Crackers, Sattur. Home delivery & store pickup available.`
+      : "Order this item online from Mahendra Fancy Crackers, Sattur.",
     path: item ? `/item/${item.id}` : undefined,
   });
 
@@ -57,6 +57,9 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
   const isSoldOut = item.status === "sold_out";
   const isBlocked = isSoldOut;
   const price = variant?.price ?? 0;
+  const actualRate = Number(variant?.actual_rate ?? 0);
+  const discountPercent = Number(variant?.discount_percent ?? 0);
+  const hasDiscount = actualRate > price;
 
   const cartEntry = cartItems.find(
     (i) => i.id === item.id && (i.variantId ?? null) === (variant?.id ?? null)
@@ -217,7 +220,15 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
           <div className="flex items-center justify-between bg-white border border-gray-100/80 rounded-3xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
             <div>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Subtotal</span>
-              <span className="font-display font-black text-2xl text-gray-900">₹{price * qty}</span>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display font-black text-2xl text-gray-900">₹{price * qty}</span>
+                {hasDiscount && (
+                  <span className="text-sm text-gray-400 line-through">₹{actualRate * qty}</span>
+                )}
+              </div>
+              {hasDiscount && discountPercent > 0 && (
+                <span className="text-xs font-bold text-emerald-600">{discountPercent}% off</span>
+              )}
             </div>
             
             <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-full p-1.5">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Minus,
   Plus,
@@ -12,19 +12,23 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle2,
+  Tag,
+  X,
+  Loader2,
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import ConfirmOrderModal from "../components/ConfirmOrderModal";
 import { orderTypes } from "../lib/data";
 import { buildOrderMessage, sendWhatsAppMessage } from "../lib/whatsapp";
-import { submitOrder } from "../lib/api";
+import { submitOrder, validateCoupon } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import logo from "../assets/placeholder.png";
 
 export default function CartPage({ onToast, onOrderSent }) {
   useSEO({
-    title: "Your Cart | Sri Mahindra Fireworks",
-    description: "Review your crackers order from Sri Mahindra Fireworks, Sattur before checkout.",
+    title: "Your Cart | Mahendra Fancy Crackers",
+    description:
+      "Review your crackers order from Mahendra Fancy Crackers, Sattur before checkout.",
     path: "/cart",
     noindex: true,
   });
@@ -39,6 +43,57 @@ export default function CartPage({ onToast, onOrderSent }) {
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
 
+  // Coupon code — validated against the backend `coupons` table (each coupon
+  // carries its own min order value + flat discount, so the 10000→500,
+  // 5000→300 style tiers live in the DB, not hardcoded here).
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
+
+  const discountAmount = appliedCoupon?.discount_amount || 0;
+  const payableTotal = Math.max(total - discountAmount, 0);
+
+  async function handleApplyCoupon() {
+    if (!couponInput.trim()) return;
+    setCheckingCoupon(true);
+    setCouponMessage("");
+    try {
+      const result = await validateCoupon(couponInput, total);
+      if (result.valid) {
+        setAppliedCoupon(result.coupon);
+        setCouponMessage(result.message);
+      } else {
+        setAppliedCoupon(null);
+        setCouponMessage(result.message);
+      }
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponMessage("Couldn't check that coupon right now — try again.");
+    }
+    setCheckingCoupon(false);
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponMessage("");
+  }
+
+  // A coupon is only valid above its own min order value. If the cart total
+  // drops below that (e.g. the user reduces quantity or removes an item
+  // after applying the coupon), the coupon must stop applying automatically
+  // — otherwise the discount stays active on a cart that no longer qualifies.
+  useEffect(() => {
+    if (!appliedCoupon) return;
+    if (total < appliedCoupon.min_order_amount) {
+      setAppliedCoupon(null);
+      setCouponMessage(
+        `"${appliedCoupon.code}" removed — cart total fell below the ₹${appliedCoupon.min_order_amount} minimum for this coupon.`,
+      );
+    }
+  }, [total, appliedCoupon]);
+
   function handleUseCurrentLocation() {
     if (!navigator.geolocation) {
       setLocationError("Location not supported on this device.");
@@ -49,14 +104,18 @@ export default function CartPage({ onToast, onOrderSent }) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        setMapLocation(`https://www.google.com/maps?q=${latitude},${longitude}`);
+        setMapLocation(
+          `https://www.google.com/maps?q=${latitude},${longitude}`,
+        );
         setLocating(false);
       },
       () => {
-        setLocationError("Couldn't get your location. Please allow location access and try again.");
+        setLocationError(
+          "Couldn't get your location. Please allow location access and try again.",
+        );
         setLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   }
 
@@ -74,16 +133,21 @@ export default function CartPage({ onToast, onOrderSent }) {
       mapLocation,
       name,
       phone,
+      couponCode: appliedCoupon?.code,
+      discountAmount,
     });
+    let savedOrder = null;
     try {
-      await submitOrder({
+      savedOrder = await submitOrder({
         cartItems: items,
         orderType,
         address,
         mapLocation,
         name,
         phone,
-        total,
+        total: payableTotal,
+        couponCode: appliedCoupon?.code,
+        discountAmount,
       });
     } catch (err) {
       console.error("Failed to save order to backend:", err);
@@ -92,7 +156,7 @@ export default function CartPage({ onToast, onOrderSent }) {
     clearCart();
     setShowConfirm(false);
     onToast?.("Order sent via WhatsApp!");
-    onOrderSent?.();
+    onOrderSent?.(savedOrder);
   }
 
   // Modern Empty Cart Screen
@@ -107,7 +171,8 @@ export default function CartPage({ onToast, onOrderSent }) {
           Your Cart is Empty
         </h2>
         <p className="text-gray-400 text-sm mt-2 max-w-xs leading-relaxed">
-          Looks like you haven't added any crackers yet. Head back and pick some for your celebration!
+          Looks like you haven't added any crackers yet. Head back and pick some
+          for your celebration!
         </p>
       </div>
     );
@@ -115,7 +180,6 @@ export default function CartPage({ onToast, onOrderSent }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-14 pb-40 md:pb-20 min-h-screen bg-gray-50/40">
-      
       {/* Title Header with Clear Cart Option */}
       <div className="mb-6 md:mb-10 flex items-end justify-between">
         <div>
@@ -131,7 +195,11 @@ export default function CartPage({ onToast, onOrderSent }) {
         <button
           type="button"
           onClick={() => {
-            if (window.confirm("Are you sure you want to clear all items from your cart?")) {
+            if (
+              window.confirm(
+                "Are you sure you want to clear all items from your cart?",
+              )
+            ) {
               clearCart();
               onToast?.("Cart cleared successfully");
             }
@@ -143,7 +211,6 @@ export default function CartPage({ onToast, onOrderSent }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_390px] gap-8 items-start">
-        
         {/* Responsive Items List */}
         <div className="space-y-4">
           {items.map((item) => {
@@ -182,7 +249,9 @@ export default function CartPage({ onToast, onOrderSent }) {
                 {/* Modern Premium Quantity Controls */}
                 <div className="flex items-center gap-2.5 bg-gray-50/80 border border-gray-100 rounded-full p-1.5">
                   <button
-                    onClick={() => updateQuantity(item.id, item.variantId, item.quantity - 1)}
+                    onClick={() =>
+                      updateQuantity(item.id, item.variantId, item.quantity - 1)
+                    }
                     className="w-7 h-7 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center transition-transform active:scale-90 hover:text-[#730ca8]"
                   >
                     <Minus size={12} />
@@ -191,7 +260,9 @@ export default function CartPage({ onToast, onOrderSent }) {
                     {item.quantity}
                   </span>
                   <button
-                    onClick={() => updateQuantity(item.id, item.variantId, item.quantity + 1)}
+                    onClick={() =>
+                      updateQuantity(item.id, item.variantId, item.quantity + 1)
+                    }
                     className="w-7 h-7 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center transition-transform active:scale-90 hover:text-[#730ca8]"
                   >
                     <Plus size={12} />
@@ -212,7 +283,6 @@ export default function CartPage({ onToast, onOrderSent }) {
 
         {/* Premium Checkout Side Panel */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] p-5 md:p-6 space-y-6 lg:sticky lg:top-28 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
-          
           {/* Order Type Tabs */}
           <div>
             <label className="text-xs font-bold text-gray-700 tracking-wider uppercase mb-2.5 block px-1">
@@ -243,7 +313,10 @@ export default function CartPage({ onToast, onOrderSent }) {
           <div className="space-y-4">
             {orderType === "Home Delivery" && (
               <div className="relative group">
-                <MapPin size={16} className="absolute left-4 top-4 text-gray-400 group-focus-within:text-[#730ca8] transition-colors" />
+                <MapPin
+                  size={16}
+                  className="absolute left-4 top-4 text-gray-400 group-focus-within:text-[#730ca8] transition-colors"
+                />
                 <textarea
                   placeholder="Full Delivery Address *"
                   value={address}
@@ -259,7 +332,10 @@ export default function CartPage({ onToast, onOrderSent }) {
                 {mapLocation ? (
                   <div className="flex items-center justify-between gap-2 bg-emerald-50/70 border border-emerald-100 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-2 min-w-0">
-                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                      <CheckCircle2
+                        size={16}
+                        className="text-emerald-600 shrink-0"
+                      />
                       <a
                         href={mapLocation}
                         target="_blank"
@@ -284,18 +360,28 @@ export default function CartPage({ onToast, onOrderSent }) {
                     disabled={locating}
                     className="w-full flex items-center justify-center gap-2 bg-purple-50/60 hover:bg-purple-100/60 border border-purple-200/70 text-[#730ca8] font-bold text-xs py-3 rounded-xl transition-all duration-300 disabled:opacity-50"
                   >
-                    <Navigation size={14} className={locating ? "animate-pulse" : ""} />
-                    {locating ? "Getting your location..." : "Pin My Current Location"}
+                    <Navigation
+                      size={14}
+                      className={locating ? "animate-pulse" : ""}
+                    />
+                    {locating
+                      ? "Getting your location..."
+                      : "Pin My Current Location"}
                   </button>
                 )}
                 {locationError && (
-                  <p className="text-[11px] text-rose-500 font-medium px-1">{locationError}</p>
+                  <p className="text-[11px] text-rose-500 font-medium px-1">
+                    {locationError}
+                  </p>
                 )}
               </div>
             )}
 
             <div className="relative group">
-              <User size={16} className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-[#730ca8] transition-colors" />
+              <User
+                size={16}
+                className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-[#730ca8] transition-colors"
+              />
               <input
                 type="text"
                 placeholder="Your Name *"
@@ -306,7 +392,10 @@ export default function CartPage({ onToast, onOrderSent }) {
             </div>
 
             <div className="relative group">
-              <Phone size={16} className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-[#730ca8] transition-colors" />
+              <Phone
+                size={16}
+                className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-[#730ca8] transition-colors"
+              />
               <input
                 type="tel"
                 placeholder="Phone Number *"
@@ -315,22 +404,100 @@ export default function CartPage({ onToast, onOrderSent }) {
                 className="w-full bg-gray-50/50 border border-gray-200/80 rounded-xl pl-11 pr-4 py-3 text-sm font-medium outline-none transition-all duration-300 focus:bg-white focus:border-[#730ca8] focus:ring-4 focus:ring-purple-500/10"
               />
             </div>
+
+            {/* Coupon Code */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-700 tracking-wider uppercase px-1 flex items-center gap-1.5">
+                <Tag size={13} className="text-[#730ca8]" /> Have a coupon code?
+              </label>
+
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between gap-2 bg-emerald-50/70 border border-emerald-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span className="text-xs font-bold text-emerald-700 truncate">
+                      {appliedCoupon.code} applied — you saved ₹{discountAmount}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="text-gray-400 hover:text-rose-500 shrink-0"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value);
+                      setCouponMessage("");
+                    }}
+                    className="flex-1 bg-gray-50/50 border border-gray-200/80 rounded-xl px-4 py-3 text-sm font-medium outline-none uppercase transition-all duration-300 focus:bg-white focus:border-[#730ca8] focus:ring-4 focus:ring-purple-500/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={checkingCoupon || !couponInput.trim()}
+                    className="px-4 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold shrink-0 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {checkingCoupon && <Loader2 size={13} className="animate-spin" />}
+                    Apply
+                  </button>
+                </div>
+              )}
+
+              {couponMessage && !appliedCoupon && (
+                <p className="text-[11px] text-rose-500 font-medium px-1">
+                  {couponMessage}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Desktop Summary Footer */}
           <div className="hidden md:block border-t border-gray-100 pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-500">Basket Subtotal</span>
-              <span className="font-display font-black text-2xl text-gray-900">₹{total}</span>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-medium text-gray-500">
+                Basket Subtotal
+              </span>
+              <span className="font-bold text-base text-gray-700">
+                ₹{total}
+              </span>
             </div>
-            
+            {discountAmount > 0 && (
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm font-medium text-emerald-600">
+                  Coupon ({appliedCoupon.code})
+                </span>
+                <span className="font-bold text-base text-emerald-600">
+                  − ₹{discountAmount}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between mb-4 pt-2 border-t border-dashed border-gray-200">
+              <span className="text-sm font-bold text-gray-800">
+                Total Payable
+              </span>
+              <span className="font-display font-black text-2xl text-gray-900">
+                ₹{payableTotal}
+              </span>
+            </div>
+
             <button
               onClick={() => setShowConfirm(true)}
               disabled={!canOrder}
               className="group w-full py-4 rounded-2xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] hover:from-[#620992] hover:to-[#730ca8] text-white font-bold text-sm tracking-wide shadow-lg disabled:opacity-40 disabled:pointer-events-none transition-all duration-300 flex items-center justify-center gap-2"
             >
               Order via WhatsApp
-              <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight
+                size={16}
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              />
             </button>
           </div>
         </div>
@@ -340,8 +507,17 @@ export default function CartPage({ onToast, onOrderSent }) {
       <div className="fixed bottom-16 md:hidden left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100/80 p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-6">
           <div>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Total</span>
-            <span className="font-display font-black text-xl text-gray-900">₹{total}</span>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
+              {discountAmount > 0 ? "Total (after coupon)" : "Total"}
+            </span>
+            <span className="font-display font-black text-xl text-gray-900">
+              ₹{payableTotal}
+            </span>
+            {discountAmount > 0 && (
+              <span className="text-[10px] text-emerald-600 font-bold block">
+                Saved ₹{discountAmount} with {appliedCoupon.code}
+              </span>
+            )}
           </div>
           <button
             onClick={() => setShowConfirm(true)}
@@ -363,13 +539,21 @@ export default function CartPage({ onToast, onOrderSent }) {
         <div className="space-y-4 text-sm">
           <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
             <div>
-              <span className="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Order Modality</span>
-              <span className="font-bold text-[#730ca8] text-sm">{orderType}</span>
+              <span className="text-xs text-gray-400 block font-semibold uppercase tracking-wider">
+                Order Modality
+              </span>
+              <span className="font-bold text-[#730ca8] text-sm">
+                {orderType}
+              </span>
             </div>
             {orderType === "Home Delivery" && address && (
               <div className="text-right max-w-[150px] truncate">
-                <span className="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Delivery To</span>
-                <span className="font-medium text-gray-700 text-xs truncate block">{address}</span>
+                <span className="text-xs text-gray-400 block font-semibold uppercase tracking-wider">
+                  Delivery To
+                </span>
+                <span className="font-medium text-gray-700 text-xs truncate block">
+                  {address}
+                </span>
               </div>
             )}
           </div>
@@ -393,16 +577,33 @@ export default function CartPage({ onToast, onOrderSent }) {
                 className="flex justify-between items-start text-xs text-gray-600"
               >
                 <span className="font-medium max-w-[70%]">
-                  {item.name} {item.variantName ? `(${item.variantName})` : ""} <span className="text-[#730ca8] font-bold">x{item.quantity}</span>
+                  {item.name} {item.variantName ? `(${item.variantName})` : ""}{" "}
+                  <span className="text-[#730ca8] font-bold">
+                    x{item.quantity}
+                  </span>
                 </span>
-                <span className="font-bold text-gray-800">₹{item.price * item.quantity}</span>
+                <span className="font-bold text-gray-800">
+                  ₹{item.price * item.quantity}
+                </span>
               </div>
             ))}
           </div>
 
-          <div className="border-t border-gray-200/60 pt-3 flex justify-between items-center font-black text-gray-900 text-base">
-            <span>Amount Payable</span>
-            <span className="text-xl text-[#730ca8]">₹{total}</span>
+          <div className="space-y-1.5 border-t border-gray-200/60 pt-3">
+            <div className="flex justify-between items-center text-xs text-gray-500 font-semibold">
+              <span>Subtotal</span>
+              <span>₹{total}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center text-xs text-emerald-600 font-bold">
+                <span>Coupon ({appliedCoupon.code})</span>
+                <span>− ₹{discountAmount}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center font-black text-gray-900 text-base pt-1">
+              <span>Amount Payable</span>
+              <span className="text-xl text-[#730ca8]">₹{payableTotal}</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 bg-purple-50/50 text-purple-900 p-3 rounded-xl border border-purple-100/60 text-xs font-medium">

@@ -6,34 +6,45 @@ import {
   MessageCircle,
   ClipboardList,
   ShoppingBag,
-  Sparkles
+  Sparkles,
+  PenLine,
+  Quote,
+  Tag,
 } from "lucide-react";
 
 import MenuItemCard from "../components/MenuItemCard";
 import Footer from "../components/Footer";
 import FireworksCanvas from "../components/FireworksCanvas";
-import {
-  VideoGallery,
-  BlogGrid,
-} from "../components/NpkHome";
+import Stars from "../components/Stars";
+import { VideoGallery, BlogGrid } from "../components/NpkHome";
 
 import {
   getCategories,
   getPopularItems,
+  getMenuItems,
   getOverallReviews,
+  getBanners,
+  getBrands,
+  getOffers,
+  getCoupons,
 } from "../lib/api";
+import CouponCard from "../components/CouponCard";
 
 import { useSEO } from "../lib/seo";
-import { restaurantInfo } from "../lib/data";
+import { restaurantInfo, getCategoryDisplayName } from "../lib/data";
 
-const MOCK_BRANDS = [
-  { name: "VANITHA", count: 35, image: "/logo.png" },
-  { name: "BLUE STAR", count: 18, image: "/logo.png" },
-  { name: "INF", count: 71, image: "/logo.png" },
-  { name: "STANDARD", count: 9, image: "/logo.png" },
-  { name: "SONNY", count: 4, image: "/logo.png" },
-  { name: "AYYAN", count: 7, image: "/logo.png" },
-  { name: "WOW STAR", count: 13, image: "/logo.png" },
+// Used only until an admin uploads real banners/brands in the DB — once
+// Admin → Banners / Admin → Brands has rows, those replace these.
+const FALLBACK_MAIN_SLIDES = [
+  "/images/hero/hero-main-1.png",
+  "/images/hero/hero-main-2.png",
+  "/images/hero/hero-main-3.png",
+];
+
+const FALLBACK_SIDE_SLIDES = [
+  "/images/hero/hero-side-1.png",
+  "/images/hero/hero-side-2.png",
+  "/images/hero/hero-side-3.png",
 ];
 
 // Helper component for Section Titles with Underline (Mobile Optimized)
@@ -68,31 +79,54 @@ export default function HomePage({
 
   const [categories, setCategories] = useState([]);
   const [popular, setPopular] = useState([]);
-  const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' });
-  
+  const [brands, setBrands] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [ownGifts, setOwnGifts] = useState([]);
+  const [coupons, setCoupons] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [timeLeft, setTimeLeft] = useState({
+    days: "00",
+    hours: "00",
+    minutes: "00",
+    seconds: "00",
+  });
+
   const [currentMainSlide, setCurrentMainSlide] = useState(0);
-  
+
   const categoryScrollRef = useRef(null);
   const brandScrollRef = useRef(null);
   const videoScrollRef = useRef(null);
   const sideBannerScrollRef = useRef(null);
+  const couponScrollRef = useRef(null);
+  const comboScrollRef = useRef(null);
+  const reviewScrollRef = useRef(null);
 
-  const mainSlides = [
-    "/images/hero/hero-main-1.png",
-    "/images/hero/hero-main-2.png",
-    "/images/hero/hero-main-3.png"
-  ];
-
-  const sideSlides = [
-    "/images/hero/hero-side-1.png",
-    "/images/hero/hero-side-2.png",
-    "/images/hero/hero-side-3.png" // Duplicated for scroll effect
-  ];
+  // Banners come from Admin → Banners (backend). Until at least one is
+  // uploaded there, we show the bundled placeholder images instead so the
+  // hero section is never empty.
+  const bannerImages = banners.map((b) => b.image).filter(Boolean);
+  const mainSlides = bannerImages.length ? bannerImages : FALLBACK_MAIN_SLIDES;
+  const sideSlides = bannerImages.length
+    ? bannerImages.slice().reverse()
+    : FALLBACK_SIDE_SLIDES;
 
   useEffect(() => {
     getCategories().then((data) => setCategories(data));
-    getPopularItems(8).then(setPopular);
-    getOverallReviews();
+    getOverallReviews()
+      .then(setReviews)
+      .catch(() => setReviews([]));
+    getBanners()
+      .then(setBanners)
+      .catch(() => setBanners([]));
+    getBrands()
+      .then(setBrands)
+      .catch(() => setBrands([]));
+    getOffers()
+      .then(setOwnGifts)
+      .catch(() => setOwnGifts([]));
+    getCoupons()
+      .then(setCoupons)
+      .catch(() => setCoupons([]));
 
     // Diwali 2026 Countdown Logic (Nov 8, 2026)
     const targetDate = new Date("November 8, 2026 00:00:00").getTime();
@@ -106,41 +140,66 @@ export default function HomePage({
       }
 
       const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const hours = Math.floor(
+        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+      );
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
       setTimeLeft({
-        days: String(days).padStart(2, '0'),
-        hours: String(hours).padStart(2, '0'),
-        minutes: String(minutes).padStart(2, '0'),
-        seconds: String(seconds).padStart(2, '0')
+        days: String(days).padStart(2, "0"),
+        hours: String(hours).padStart(2, "0"),
+        minutes: String(minutes).padStart(2, "0"),
+        seconds: String(seconds).padStart(2, "0"),
       });
     }, 1000);
-
-    // Main Left Banner Fade-in/out
-    const mainSliderInterval = setInterval(() => {
-      setCurrentMainSlide((prev) => (prev + 1) % mainSlides.length);
-    }, 3500); 
 
     // Auto-scroll for the right-side banners
     const sideSliderAutoScroll = setInterval(() => {
       if (sideBannerScrollRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = sideBannerScrollRef.current;
+        const { scrollLeft, scrollWidth, clientWidth } =
+          sideBannerScrollRef.current;
         if (scrollLeft + clientWidth >= scrollWidth - 10) {
           sideBannerScrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
         } else {
-          sideBannerScrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
+          sideBannerScrollRef.current.scrollBy({
+            left: 300,
+            behavior: "smooth",
+          });
         }
       }
     }, 3000);
 
     return () => {
       clearInterval(interval);
-      clearInterval(mainSliderInterval);
       clearInterval(sideSliderAutoScroll);
     };
   }, []);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const giftBoxCategory = categories.find(
+      (c) => c.name?.trim().toLowerCase() === "gift box",
+    );
+    if (giftBoxCategory) {
+      getMenuItems({ categoryId: giftBoxCategory.id })
+        .then(setPopular)
+        .catch(() => setPopular([]));
+    } else {
+      getPopularItems(8)
+        .then(setPopular)
+        .catch(() => setPopular([]));
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    setCurrentMainSlide(0);
+    if (mainSlides.length <= 1) return;
+    const mainSliderInterval = setInterval(() => {
+      setCurrentMainSlide((prev) => (prev + 1) % mainSlides.length);
+    }, 3500);
+    return () => clearInterval(mainSliderInterval);
+  }, [mainSlides.length]);
 
   const handleCategorySelect = (cat) => {
     if (onSelectCategory) onSelectCategory(cat);
@@ -156,36 +215,18 @@ export default function HomePage({
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#f4f6f9] pb-10">
-      
-      {/* Top Scrolling Banner */}
-      <div className=" py-2 mb-4 md:mb-6">
-        {/* <div className="flex w-max animate-[headerMarquee_25s_linear_infinite] gap-8 whitespace-nowrap px-4 text-[10px] md:text-[11px] font-bold tracking-widest text-white">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <span key={i} className="flex items-center gap-8">
-              <span><Flame size={14} className="inline mr-1 text-yellow-300"/> DIWALI 2026 BOOKINGS OPEN! ORDER NOW!</span>
-              <span className="text-yellow-300">✦</span>
-              <span>100% SIVAKASI DIRECT FACTORY PRICE</span>
-              <span className="text-yellow-300">✦</span>
-              <span>ALL INDIA DOORSTEP DELIVERY AVAILABLE</span>
-              <span className="text-yellow-300">✦</span>
-              <span>PREMIUM QUALITY VERIFIED FIREWORKS</span>
-              <span className="text-yellow-300">✦</span>
-            </span>
-          ))}
-        </div> */}
-      </div>
+  const giftBoxCategory = categories.find(
+    (c) => c.name?.trim().toLowerCase() === "gift box",
+  );
 
+  return (
+    <div className="min-h-screen bg-[#f4f6f9] mt-3 pb-10">
       {/* Main Container */}
       <div className="mx-auto w-full max-w-[1440px] px-4 pb-28 sm:px-6 md:px-8 lg:px-10 space-y-12 md:space-y-16">
-        
         {/* Mobile & Desktop Optimized Hero Section */}
         <section className="relative">
           <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:h-[550px]">
-            
-            {/* Main Horizontal Banner (Super Combo) */}
-            <div 
+            <div
               className="lg:col-span-7 relative overflow-hidden rounded-[20px] md:rounded-[24px] shadow-lg cursor-pointer group bg-[#1a1040] h-[350px] sm:h-[450px] lg:h-full shrink-0"
               onClick={() => onNavigate("menu")}
             >
@@ -195,20 +236,22 @@ export default function HomePage({
                   src={src}
                   alt={`Mega Sale Diwali Banner ${idx + 1}`}
                   className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-                    idx === currentMainSlide ? "opacity-100 z-10 scale-100" : "opacity-0 z-0 scale-105"
+                    idx === currentMainSlide
+                      ? "opacity-100 z-10 scale-100"
+                      : "opacity-0 z-0 scale-105"
                   }`}
                 />
               ))}
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-20 pointer-events-none"></div>
             </div>
 
-            {/* Side Vertical Banners (Sonny, Ananda's) - Taller for Mobile View */}
-<div className="lg:col-span-5 relative w-full h-[670px] sm:h-[580px] lg:h-full rounded-[20px] md:rounded-[24px] overflow-hidden">              <div 
+            <div className="lg:col-span-5 relative w-full h-[670px] sm:h-[580px] lg:h-full rounded-[20px] md:rounded-[24px] overflow-hidden">
+              <div
                 ref={sideBannerScrollRef}
                 className="flex overflow-x-auto gap-4 h-full snap-x snap-mandatory no-scrollbar pb-2"
               >
                 {sideSlides.map((src, idx) => (
-                  <div 
+                  <div
                     key={idx}
                     className="min-w-full lg:min-w-[calc(50%-8px)] snap-center relative h-full rounded-[20px] md:rounded-[24px] overflow-hidden shadow-md cursor-pointer group bg-[#0d2a45]"
                     onClick={() => onNavigate("menu")}
@@ -223,7 +266,7 @@ export default function HomePage({
               </div>
             </div>
           </div>
-          
+
           <div className="pointer-events-none absolute inset-0 z-30">
             <FireworksCanvas density={1100} opacity={0.65} maxRockets={2} />
           </div>
@@ -231,11 +274,23 @@ export default function HomePage({
 
         {/* Promo Banner 1 */}
         <section>
-          <div className="p-8 md:p-12 text-center text-white rounded-[24px] shadow-lg" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #311042 100%)' }}>
-            <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-yellow-400 block mb-2">Limited Time Offer</span>
-            <h2 className="font-display text-2xl md:text-4xl font-black text-white mb-3 leading-tight">Diwali 2026 Special Booking Open!</h2>
+          <div
+            className="p-8 md:p-12 text-center text-white rounded-[24px] shadow-lg"
+            style={{
+              background:
+                "linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #311042 100%)",
+            }}
+          >
+            <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-yellow-400 block mb-2">
+              Limited Time Offer
+            </span>
+            <h2 className="font-display text-2xl md:text-4xl font-black text-white mb-3 leading-tight">
+              Diwali 2026 Special Booking Open!
+            </h2>
             <p className="text-white/80 max-w-2xl mx-auto mb-6 text-xs md:text-base leading-relaxed">
-              Order your premium quality Sivakasi firecrackers online. Get 100% direct factory pricing, secure checkout, and reliable doorstep delivery.
+              Order your premium quality Sivakasi firecrackers online. Get 100%
+              direct factory pricing, secure checkout, and reliable doorstep
+              delivery.
             </p>
             <button
               type="button"
@@ -247,66 +302,11 @@ export default function HomePage({
           </div>
         </section>
 
-        {/* Custom YouTube Gallery */}
-        <section className="py-6 md:py-8">
-          <SectionTitle 
-            subtitle="Visual Experience" 
-            title={<>Watch Our Fireworks <br className="hidden md:block" /> in Action</>} 
-            description="Experience the mesmerizing aerial patterns and crackling sound effects of our premium fireworks gallery."
-          />
-          
-          <div className="relative mt-8 md:mt-12 group">
-             <button
-              onClick={() => scrollContainer(videoScrollRef, "left")}
-              className="absolute -left-5 top-1/2 -translate-y-1/2 z-10 hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-orange-50 hover:text-[#ff6d00] opacity-0 group-hover:opacity-100"
-            >
-              <ChevronLeft size={24} />
-            </button>
-
-            <div 
-              ref={videoScrollRef}
-              className="flex overflow-x-auto gap-4 md:gap-6 pb-8 px-4 md:px-2 no-scrollbar scroll-smooth snap-x snap-mandatory"
-            >
-              {[
-                { url: "#", thumb: "/images/yt/hqdefault.953fd.jpg", title: "Combo Pack Demo" },
-                { url: "#", thumb: "/images/yt/hqdefault.9117d.jpg", title: "Sky Shots" },
-                { url: "#", thumb: "/images/yt/hqdefault.eb72b.jpg", title: "Shop Tour" },
-                { url: "#", thumb: "/images/yt/hqdefault.60ca5.jpg", title: "Family Pack" },
-              ].map((video, idx) => (
-                <div 
-                  key={idx}
-                  className="min-w-[85vw] sm:min-w-[60vw] md:min-w-[400px] snap-center shrink-0 relative rounded-[20px] md:rounded-[24px] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)] cursor-pointer group/video border border-gray-100/50"
-                >
-                  <img 
-                    src={video.thumb} 
-                    alt={video.title} 
-                    className="w-full h-[200px] md:h-[260px] object-cover transition-transform duration-700 group-hover/video:scale-105" 
-                  />
-                  <div className="absolute inset-0 bg-black/10 transition-colors duration-300 group-hover/video:bg-black/5"></div>
-                  
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 bg-[#ff6d00] rounded-full flex items-center justify-center shadow-[0_5px_20px_rgba(255,109,0,0.6)] transition-all duration-300 group-hover/video:scale-110 group-hover/video:bg-[#ff8a00]">
-                    <svg className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 md:ml-1.5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M5 3l14 9-14 9V3z" />
-                    </svg>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => scrollContainer(videoScrollRef, "right")}
-              className="absolute -right-5 top-1/2 -translate-y-1/2 z-10 hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-orange-50 hover:text-[#ff6d00] opacity-0 group-hover:opacity-100"
-            >
-              <ChevronRight size={24} />
-            </button>
-          </div>
-        </section>
-
         {/* Shop By Category */}
         <section className="relative">
-          <SectionTitle 
-            subtitle="Premium Categories" 
-            title="Shop by Category" 
+          <SectionTitle
+            subtitle="Premium Categories"
+            title="Shop by Category"
             description="Explore our curated collections of sparkling fireworks, sky shot aerials, kids sparklers, and festival crackers."
           />
 
@@ -318,26 +318,26 @@ export default function HomePage({
               <ChevronLeft size={20} />
             </button>
 
-            <div 
+            <div
               ref={categoryScrollRef}
               className="flex overflow-x-auto gap-6 md:gap-8 pb-8 px-2 md:px-4 no-scrollbar scroll-smooth snap-x"
             >
               {categories.map((cat, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   onClick={() => handleCategorySelect(cat)}
                   className="group/card w-[170px] min-w-[170px] md:w-[220px] md:min-w-[220px] shrink-0 snap-start flex flex-col items-center justify-between p-5 md:p-6 bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.04)] cursor-pointer transition-all duration-300 hover:shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:-translate-y-2 border border-gray-100/80"
                 >
                   <div className="h-[100px] md:h-[130px] w-full flex items-center justify-center mb-5 transition-transform duration-500 group-hover/card:scale-110">
-                    <img 
-                      src={cat.image || "/logo.png"} 
+                    <img
+                      src={cat.image || "/logo.png"}
                       alt={cat.name}
                       className="max-h-full max-w-full object-contain drop-shadow-sm rounded-lg"
                     />
                   </div>
                   <div className="text-center w-full">
                     <h5 className="font-black text-[#0f172a] text-[12px] md:text-[14px] uppercase tracking-wide leading-snug mb-3 line-clamp-2">
-                      {cat.name}
+                      {getCategoryDisplayName(cat.name)}
                     </h5>
                     <span className="text-[10px] md:text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full inline-block border border-slate-200">
                       {cat.count || Math.floor(Math.random() * 20) + 1} items
@@ -358,11 +358,22 @@ export default function HomePage({
 
         {/* Safe & Sound Celebrations Promo */}
         <section>
-          <div className="p-8 md:p-12 text-center text-white rounded-[24px] shadow-lg" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #4c1d95 50%, #db2777 100%)' }}>
-            <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-yellow-400 block mb-2">Safe & Sound Celebrations</span>
-            <h2 className="font-display text-2xl md:text-4xl font-black text-white mb-3 leading-tight">Kids' Favourite Fireworks Collection 🎇</h2>
+          <div
+            className="p-8 md:p-12 text-center text-white rounded-[24px] shadow-lg"
+            style={{
+              background:
+                "linear-gradient(135deg, #1e1b4b 0%, #4c1d95 50%, #db2777 100%)",
+            }}
+          >
+            <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.2em] text-yellow-400 block mb-2">
+              Safe & Sound Celebrations
+            </span>
+            <h2 className="font-display text-2xl md:text-4xl font-black text-white mb-3 leading-tight">
+              Kids' Favourite Fireworks Collection 🎇
+            </h2>
             <p className="text-white/80 max-w-2xl mx-auto mb-6 text-xs md:text-base leading-relaxed">
-              Bring smiles and bright lights safely with our custom sparklers, flower pots, and ground chakkars formulated specially for kids.
+              Bring smiles and bright lights safely with our custom sparklers,
+              flower pots, and ground chakkars formulated specially for kids.
             </p>
             <button
               type="button"
@@ -374,11 +385,151 @@ export default function HomePage({
           </div>
         </section>
 
+        {/* Offers & Coupons Section */}
+        {coupons.length > 0 && (
+          <section className="relative">
+            <SectionTitle
+              subtitle="Extra Savings"
+              title="Offers"
+              description="Copy a coupon code and apply it at checkout on the Cart page."
+            />
+
+            <div className="relative group">
+              <button
+                onClick={() => scrollContainer(couponScrollRef, "left")}
+                className="absolute -left-3 md:-left-6 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-purple-50 hover:text-[#730ca8] opacity-0 group-hover:opacity-100"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              <button
+                onClick={() => scrollContainer(couponScrollRef, "right")}
+                className="absolute -right-3 md:-right-6 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-purple-50 hover:text-[#730ca8] opacity-0 group-hover:opacity-100"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            {/* Added Offer Page Call-to-Action Banner Box */}
+            <div className="mt-8">
+              <div
+                onClick={() => onNavigate("offer")}
+                className="rounded-[24px] shadow-lg p-8 md:p-10 text-center relative overflow-hidden cursor-pointer group transition-transform hover:scale-[1.01]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #064e3b 0%, #022c22 50%, #14532d 100%)",
+                }}
+              >
+                <div className="relative z-10">
+                  <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.15em] text-yellow-400 block mb-2">
+                    Special Festival Deals
+                  </span>
+                  <h3 className="font-display text-2xl md:text-4xl font-black text-white mb-3 leading-tight">
+                    Want to Explore All Discounts & Special Combos?
+                  </h3>
+                  <p className="text-white/80 max-w-2xl mx-auto mb-6 text-xs md:text-base leading-relaxed">
+                    Check out our dedicated offers page for exclusive festive
+                    coupon codes, wholesale discount slabs, and gift hampers.
+                  </p>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#ff4757] hover:bg-[#ff6b81] px-6 py-3 md:px-8 md:py-3.5 text-sm md:text-base font-bold text-white shadow-xl transition-transform group-hover:scale-105"
+                  >
+                    <Tag size={16} /> View All Offers & Deals
+                  </button>
+                </div>
+                <div className="absolute top-0 left-0 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+              </div>
+            </div>
+
+            <div className="text-center mt-6">
+              <button
+                type="button"
+                onClick={() => onNavigate("offer")}
+                className="text-xs font-bold text-[#730ca8] hover:text-[#8b3a9e] uppercase tracking-wider underline underline-offset-4"
+              >
+                View All Offers
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Gift Box Combos — ready-made combo gift boxes from Admin → Offers */}
+        {ownGifts.length > 0 && (
+          <section>
+            <SectionTitle
+              subtitle="Bundled & Ready"
+              title="Combo Gift Boxes"
+              description="Hand-picked crackers bundled together at one special combo rate — order the whole box in one tap."
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {ownGifts.slice(0, 3).map((gift) => {
+                const savings = gift.originalTotal - gift.rate;
+                const coverImage = gift.image || gift.products?.[0]?.image;
+                return (
+                  <div
+                    key={gift.id}
+                    className="bg-white rounded-[24px] overflow-hidden shadow-[0_5px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.1)] transition-all duration-300 border border-gray-100 flex flex-col"
+                  >
+                    <div className="relative h-[160px] w-full overflow-hidden bg-gray-100">
+                      {coverImage ? (
+                        <img
+                          src={coverImage}
+                          alt={gift.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#730ca8] to-[#8b3a9e]">
+                          <Sparkles size={28} className="text-white/70" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5 flex flex-col flex-1">
+                      <h4 className="font-bold text-gray-900 text-base mb-1 leading-snug">
+                        {gift.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-display font-black text-xl text-[#730ca8]">
+                          ₹{gift.rate}
+                        </span>
+                        {savings > 0 && (
+                          <span className="text-xs text-gray-400 line-through font-semibold">
+                            ₹{gift.originalTotal}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("offers")}
+                        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] text-white font-bold text-xs tracking-wide shadow-md transition-all active:scale-95"
+                      >
+                        <ShoppingBag size={14} /> View Gift Box
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="text-center mt-6">
+              <button
+                type="button"
+                onClick={() => onNavigate("offers")}
+                className="text-xs font-bold text-[#730ca8] hover:text-[#8b3a9e] uppercase tracking-wider underline underline-offset-4"
+              >
+                View All Gift Boxes
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Shop By Brand */}
         <section className="relative">
-          <SectionTitle 
-            subtitle="Trusted Manufacturers" 
-            title="Shop by Brand" 
+          <SectionTitle
+            subtitle="Trusted Manufacturers"
+            title="Our Brands"
             description="We collaborate directly with Sivakasi's top-rated authentic firecracker brands to ensure unmatched reliability."
           />
 
@@ -390,19 +541,23 @@ export default function HomePage({
               <ChevronLeft size={20} />
             </button>
 
-            <div 
+            <div
               ref={brandScrollRef}
               className="flex overflow-x-auto gap-6 md:gap-8 pb-8 px-2 md:px-4 no-scrollbar scroll-smooth snap-x"
             >
-              {MOCK_BRANDS.map((brand, idx) => (
-                <div 
-                  key={idx} 
-                  onClick={() => onNavigate("menu")}
-                  className="group/card w-[170px] min-w-[170px] md:w-[220px] md:min-w-[220px] shrink-0 snap-start flex flex-col items-center justify-between p-5 md:p-6 bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.04)] cursor-pointer transition-all duration-300 hover:shadow-[0_12px_30px_rgba(0,0,0,0.08)] hover:-translate-y-2 border border-gray-100/80"
+              {brands.length === 0 && (
+                <div className="w-full text-center py-8 text-slate-400 text-xs font-semibold">
+                  Brands will appear here once added in Admin → Brands.
+                </div>
+              )}
+              {brands.map((brand) => (
+                <div
+                  key={brand.id}
+                  className="group/card w-[170px] min-w-[170px] md:w-[220px] md:min-w-[220px] shrink-0 snap-start flex flex-col items-center justify-between p-5 md:p-6 bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 border border-gray-100/80"
                 >
                   <div className="h-[80px] w-[80px] md:h-[110px] md:w-[110px] flex items-center justify-center mb-5 transition-transform duration-500 group-hover/card:scale-110 bg-gray-50 rounded-full border border-gray-200 p-3">
-                    <img 
-                      src={brand.image} 
+                    <img
+                      src={brand.image || "/logo.png"}
                       alt={brand.name}
                       className="max-h-full max-w-full object-contain"
                     />
@@ -411,9 +566,6 @@ export default function HomePage({
                     <h5 className="font-black text-[#0f172a] text-[12px] md:text-[14px] uppercase tracking-wide leading-snug mb-3 line-clamp-2">
                       {brand.name}
                     </h5>
-                    <span className="text-[10px] md:text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full inline-block border border-slate-200">
-                      {brand.count} items
-                    </span>
                   </div>
                 </div>
               ))}
@@ -428,34 +580,91 @@ export default function HomePage({
           </div>
         </section>
 
-        {/* Combo Packs (Grid format) */}
-        <section>
-          <SectionTitle 
-            subtitle="Family Packs" 
-            title="COMBO PACK" 
-            description="Pre Defined Packs for our Valuable customers"
+        {/* Combo Packs (Responsive: 2 Columns Grid on Mobile, Horizontal Scroll on Desktop) */}
+        <section className="relative">
+          <SectionTitle
+            subtitle="Family Packs"
+            title="COMBO PACK"
+            description="Ready-made Gift Box combos from our Gift Box category, pre-packed for our valuable customers"
           />
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-            {popular.map((item, index) => (
-              <MenuItemCard
-                key={item.id}
-                item={item}
-                onClick={() => onSelectItem(item)}
-                onToast={onToast}
-              />
-            ))}
-          </div>
+
+          {popular.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 text-xs font-semibold bg-white rounded-[24px] border border-dashed border-gray-200">
+              No Gift Box products yet — add items under the "Gift Box" category
+              in Admin.
+            </div>
+          ) : (
+            <>
+              <div className="relative group">
+                <button
+                  onClick={() => scrollContainer(comboScrollRef, "left")}
+                  className="absolute -left-3 md:-left-6 top-1/2 -translate-y-1/2 z-10 hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-purple-50 hover:text-[#730ca8] opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+
+                <div
+                  ref={comboScrollRef}
+                  className="grid grid-cols-2 md:flex md:overflow-x-auto gap-3 md:gap-6 pb-2 px-2 md:px-4 no-scrollbar scroll-smooth snap-x"
+                >
+                  {popular.slice(0, 8).map((item) => (
+                    <div
+                      key={item.id}
+                      className="w-full md:w-[220px] md:min-w-[220px] shrink-0 snap-start"
+                    >
+                      <MenuItemCard
+                        item={item}
+                        onClick={() => onSelectItem(item)}
+                        onToast={onToast}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => scrollContainer(comboScrollRef, "right")}
+                  className="absolute -right-3 md:-right-6 top-1/2 -translate-y-1/2 z-10 hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-purple-50 hover:text-[#730ca8] opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+              <div className="text-center mt-6">
+                <button
+                  type="button"
+                  onClick={() =>
+                    giftBoxCategory
+                      ? handleCategorySelect(giftBoxCategory)
+                      : onNavigate("menu")
+                  }
+                  className="text-xs font-bold text-[#730ca8] hover:text-[#8b3a9e] uppercase tracking-wider underline underline-offset-4"
+                >
+                  View All Products
+                </button>
+              </div>
+            </>
+          )}
         </section>
 
         {/* Premium Experience Promo Banner */}
         <section>
-          <div className="rounded-[24px] shadow-lg p-8 md:p-12 text-center relative overflow-hidden" style={{ background: 'linear-gradient(to right, #2e1065, #701a75, #be185d)' }}>
+          <div
+            className="rounded-[24px] shadow-lg p-8 md:p-12 text-center relative overflow-hidden"
+            style={{
+              background:
+                "linear-gradient(to right, #2e1065, #701a75, #be185d)",
+            }}
+          >
             <div className="relative z-10">
-              <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.15em] text-yellow-400 block mb-2 md:mb-3">Premium Sivakasi Quality</span>
-              <h2 className="font-display text-2xl md:text-5xl font-black text-white mb-3 md:mb-4 leading-tight">Experience the Sky-Show Magic</h2>
+              <span className="text-[10px] md:text-sm font-bold uppercase tracking-[0.15em] text-yellow-400 block mb-2 md:mb-3">
+                Premium Sivakasi Quality
+              </span>
+              <h2 className="font-display text-2xl md:text-5xl font-black text-white mb-3 md:mb-4 leading-tight">
+                Experience the Sky-Show Magic
+              </h2>
               <p className="text-white/80 max-w-3xl mx-auto mb-6 md:mb-8 text-xs md:text-base leading-relaxed">
-                Looking for something grand? Explore our premium multi-shot aerial series and sparklers for an unforgettable celebration.
+                Looking for something grand? Explore our premium multi-shot
+                aerial series and sparklers for an unforgettable celebration.
               </p>
               <button
                 type="button"
@@ -475,36 +684,60 @@ export default function HomePage({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <div className="bg-[#388e99] rounded-[24px] p-5 md:p-8 flex items-center justify-between shadow-lg relative overflow-hidden group">
               <div className="relative z-10 w-2/3 pr-2">
-                <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider text-yellow-400 mb-1.5 block">Premium Quality</span>
-                <h3 className="text-white font-black text-[15px] md:text-xl leading-snug">Best Quality from Verified Manufacturers</h3>
+                <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider text-yellow-400 mb-1.5 block">
+                  Premium Quality
+                </span>
+                <h3 className="text-white font-black text-[15px] md:text-xl leading-snug">
+                  Best Quality from Verified Manufacturers
+                </h3>
               </div>
               <div className="relative z-10 w-[70px] h-[70px] md:w-[100px] md:h-[100px] shrink-0 rounded-full border-[3px] border-yellow-400 bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
                 <div className="w-full h-full rounded-full overflow-hidden border border-dashed border-purple-300 p-1">
-                  <img src="/logo.png" alt="Icon" className="w-full h-full object-contain" />
+                  <img
+                    src="/logo.png"
+                    alt="Icon"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
             </div>
 
             <div className="bg-[#8b3a9e] rounded-[24px] p-5 md:p-8 flex items-center justify-between shadow-lg relative overflow-hidden group">
               <div className="relative z-10 w-2/3 pr-2">
-                <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider text-yellow-400 mb-1.5 block">Trusted Partners</span>
-                <h3 className="text-white font-black text-[15px] md:text-xl leading-snug">We are collab with Top Partners from Sivakasi</h3>
+                <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider text-yellow-400 mb-1.5 block">
+                  Trusted Partners
+                </span>
+                <h3 className="text-white font-black text-[15px] md:text-xl leading-snug">
+                  We are collab with Top Partners from Sivakasi
+                </h3>
               </div>
               <div className="relative z-10 w-[70px] h-[70px] md:w-[100px] md:h-[100px] shrink-0 rounded-full border-[3px] border-yellow-400 bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
                 <div className="w-full h-full rounded-full overflow-hidden border border-dashed border-purple-300 p-1">
-                  <img src="/logo.png" alt="Icon" className="w-full h-full object-contain" />
+                  <img
+                    src="/logo.png"
+                    alt="Icon"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
             </div>
 
             <div className="bg-[#a3a847] rounded-[24px] p-5 md:p-8 flex items-center justify-between shadow-lg relative overflow-hidden group">
               <div className="relative z-10 w-2/3 pr-2">
-                <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider text-yellow-400 mb-1.5 block">Authentic Brands</span>
-                <h3 className="text-white font-black text-[15px] md:text-xl leading-snug">We are Selling Crackers from Authentic Brands</h3>
+                <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider text-yellow-400 mb-1.5 block">
+                  Authentic Brands
+                </span>
+                <h3 className="text-white font-black text-[15px] md:text-xl leading-snug">
+                  We are Selling Crackers from Authentic Brands
+                </h3>
               </div>
               <div className="relative z-10 w-[70px] h-[70px] md:w-[100px] md:h-[100px] shrink-0 rounded-full border-[3px] border-yellow-400 bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
                 <div className="w-full h-full rounded-full overflow-hidden border border-dashed border-purple-300 p-1">
-                  <img src="/logo.png" alt="Icon" className="w-full h-full object-contain" />
+                  <img
+                    src="/logo.png"
+                    alt="Icon"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
             </div>
@@ -514,9 +747,9 @@ export default function HomePage({
         {/* Custom Dark Theme Diwali Countdown */}
         <section className="relative overflow-hidden rounded-[32px] bg-[#0f172a] shadow-2xl py-12 md:py-20 px-4">
           <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/90 to-[#0f172a]/95 z-0" />
-          
+
           <div className="absolute inset-0 z-0 opacity-40 mix-blend-screen">
-             <FireworksCanvas density={800} opacity={0.6} maxRockets={1} />
+            <FireworksCanvas density={800} opacity={0.6} maxRockets={1} />
           </div>
 
           <div className="relative z-10 text-center max-w-3xl mx-auto">
@@ -534,7 +767,10 @@ export default function HomePage({
                 { label: "Mins", value: timeLeft.minutes },
                 { label: "Secs", value: timeLeft.seconds },
               ].map((item, idx) => (
-                <div key={idx} className="flex flex-col items-center justify-center w-[70px] h-[75px] md:w-[100px] md:h-[105px] bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-inner">
+                <div
+                  key={idx}
+                  className="flex flex-col items-center justify-center w-[70px] h-[75px] md:w-[100px] md:h-[105px] bg-[#1e293b]/85 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-inner"
+                >
                   <span className="font-display text-2xl md:text-5xl font-black text-[#ff6d00] leading-none mb-1 md:mb-2">
                     {item.value}
                   </span>
@@ -546,16 +782,101 @@ export default function HomePage({
             </div>
 
             <p className="text-slate-400 text-xs md:text-base max-w-xl mx-auto px-4 leading-relaxed">
-              Make this Diwali spectacular with verified quality Sivakasi crackers directly from the factory.
+              Make this Diwali spectacular with verified quality Sivakasi
+              crackers directly from the factory.
             </p>
+          </div>
+        </section>
+
+        {/* Customer Reviews — modern card layout + Write a Review CTA */}
+        <section className="relative">
+          <SectionTitle
+            subtitle="In Their Words"
+            title="Customer Reviews"
+            description="Real feedback from customers who celebrated with our crackers."
+          />
+
+          {reviews.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 text-xs font-semibold bg-white rounded-[24px] border border-dashed border-gray-200">
+              No reviews yet — be the first to share your experience!
+            </div>
+          ) : (
+            <div className="relative group">
+              <button
+                onClick={() => scrollContainer(reviewScrollRef, "left")}
+                className="absolute -left-3 md:-left-6 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-purple-50 hover:text-[#730ca8] opacity-0 group-hover:opacity-100"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              <div
+                ref={reviewScrollRef}
+                className="flex overflow-x-auto gap-4 md:gap-6 pb-2 px-2 md:px-4 no-scrollbar scroll-smooth snap-x"
+              >
+                {reviews.map((r) => (
+                  <div
+                    key={r.id}
+                    className="relative bg-white rounded-[24px] p-5 md:p-6 shadow-[0_5px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.1)] transition-all duration-300 border border-gray-100 flex flex-col w-[280px] min-w-[280px] md:w-[320px] md:min-w-[320px] shrink-0 snap-start"
+                  >
+                    <Quote
+                      size={28}
+                      className="text-[#ff6d00]/15 absolute top-4 right-5"
+                    />
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#730ca8] to-[#8b3a9e] flex items-center justify-center text-white font-black text-sm uppercase shrink-0">
+                        {r.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="font-bold text-gray-900 text-sm truncate">
+                          {r.name}
+                        </h5>
+                        <Stars rating={r.rating} size={12} />
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500 leading-relaxed line-clamp-4 flex-1">
+                      {r.comment}
+                    </p>
+                    <span className="text-[11px] text-gray-400 mt-3 font-medium">
+                      {r.date || "Just now"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => scrollContainer(reviewScrollRef, "right")}
+                className="absolute -right-3 md:-right-6 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] text-gray-700 transition-all hover:bg-purple-50 hover:text-[#730ca8] opacity-0 group-hover:opacity-100"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+
+          <div className="text-center mt-8 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate("reviews")}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff6d00] to-[#ff1744] px-6 py-3 text-sm font-bold text-white shadow-xl hover:scale-105 transition-transform"
+            >
+              <PenLine size={16} /> Write a Review
+            </button>
+            {reviews.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onNavigate("reviews")}
+                className="text-xs font-bold text-[#730ca8] hover:text-[#8b3a9e] uppercase tracking-wider underline underline-offset-4"
+              >
+                View All Reviews
+              </button>
+            )}
           </div>
         </section>
 
         {/* Custom Blog / Safety Tips Section */}
         <section>
-          <SectionTitle 
-            subtitle="Safety & Insights" 
-            title="Our Latest Posts & Tips" 
+          <SectionTitle
+            subtitle="Safety & Insights"
+            title="Our Latest Posts & Tips"
             description="Stay informed with firework safety directions, booking announcements, and festival guides."
           />
 
@@ -588,19 +909,19 @@ export default function HomePage({
                 image: "/images/blog/blog3.jpg",
                 title: "Directions Regulating Firecrackers",
                 text: "As per the Supreme Court order, Online sales of firecrackers banned from 2018. We obey the order and we don't permit online purchase of crackers.",
-              }
+              },
             ].map((post, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className="bg-white rounded-[24px] overflow-hidden shadow-[0_5px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 border border-gray-100 flex flex-col cursor-pointer"
               >
                 <div className="relative h-[180px] md:h-[200px] w-full overflow-hidden bg-gray-100">
-                  <img 
-                    src={post.image} 
-                    alt={post.title} 
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" 
+                  <img
+                    src={post.image}
+                    alt={post.title}
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                   />
-                  <div className="absolute top-3 left-3 md:top-4 md:left-4 bg-gradient-to-r from-[#ff6d00] to-[#ff1744] text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
+                  <div className="absolute top-3 left-3 md:top-4 md:last:left-4 bg-gradient-to-r from-[#ff6d00] to-[#ff1744] text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
                     {post.badge}
                   </div>
                   <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-gray-900/80 backdrop-blur-sm text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
@@ -608,38 +929,20 @@ export default function HomePage({
                   </div>
                 </div>
                 <div className="p-5 md:p-6 flex flex-col flex-1 text-left">
-                  <h4 className="font-bold text-gray-900 text-base md:text-lg mb-2 md:mb-3 leading-snug">{post.title}</h4>
-                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed line-clamp-3">{post.text}</p>
+                  <h4 className="font-bold text-gray-900 text-base md:text-lg mb-2 md:mb-3 leading-snug">
+                    {post.title}
+                  </h4>
+                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed line-clamp-3">
+                    {post.text}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         </section>
-
       </div>
 
       <Footer onNavigate={onNavigate} />
-
-      {/* Floating Action Buttons */}
-      {/* <div className="fixed bottom-5 right-5 md:bottom-6 md:right-6 z-[90] flex flex-col gap-3">
-        <button
-          onClick={() => onNavigate("menu")}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-[#730ca8] text-white shadow-[0_10px_20px_rgba(115,12,168,0.3)] hover:scale-110 transition-transform cursor-pointer"
-          title="Quick Enquiry"
-        >
-          <ClipboardList size={20} />
-        </button>
-        
-        <a
-          href={`https://wa.me/${restaurantInfo.phone.replace(/[^0-9]/g, '')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_10px_20px_rgba(37,211,102,0.3)] hover:scale-110 transition-transform cursor-pointer"
-          title="Chat on WhatsApp"
-        >
-          <MessageCircle size={24} />
-        </a>
-      </div> */}
     </div>
   );
 }

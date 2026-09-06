@@ -3,8 +3,10 @@ import logo from "../assets/logo.png";
 import { restaurantInfo } from "../lib/data";
 
 const IMPORTANT_LINKS = [
+  { label: "Offers", key: "offer" },
   { label: "Safety Tips", key: "safety-tips" },
   { label: "Price List", key: "price-list" },
+  { label: "Track Order", key: "track-order" },
   { label: "Our Reviews", key: "reviews" },
   { label: "About Us", key: "about" },
 ];

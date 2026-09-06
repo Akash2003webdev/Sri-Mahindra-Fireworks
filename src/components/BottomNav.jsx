@@ -1,11 +1,12 @@
-import { Home, Sparkles, Gift, MoreHorizontal, ShoppingBag } from "lucide-react";
+import { Home, Sparkles, Gift, MoreHorizontal, ShoppingBag,BadgePercent } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
 const NAV_ITEMS = [
   { key: "home", label: "Home", icon: Home },
   { key: "menu", label: "Products", icon: Sparkles },
   { key: "cart", label: "Cart", icon: ShoppingBag, raised: true },
-  { key: "offers", label: "Gift Box", icon: Gift },
+    { key: "offer", label: "Offers", icon: BadgePercent },
+
   { key: "more", label: "More", icon: MoreHorizontal },
 ];
 

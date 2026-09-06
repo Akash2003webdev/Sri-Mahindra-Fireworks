@@ -1,6 +1,3 @@
-// API layer backed by Supabase. Function names/signatures match what the
-// components already call, so no component code had to change.
-
 import { supabase } from "./supabaseClient";
 import { restaurantInfo } from "./data";
 
@@ -8,6 +5,7 @@ function normalizeItem(row) {
   return {
     ...row,
     images: row.images || [],
+    videos: row.videos || [],
     variants: (row.variants || []).slice().sort((a, b) => a.sort_order - b.sort_order),
     categoryName: row.category?.name,
   };
@@ -18,7 +16,6 @@ function normalizeReview(row) {
 }
 
 export async function getRestaurantInfo() {
-  // Static — not stored in the DB.
   return restaurantInfo;
 }
 
@@ -36,6 +33,16 @@ export async function getCategoryById(id) {
   const { data, error } = await supabase.from("categories").select("*").eq("id", id).single();
   if (error) throw error;
   return data;
+}
+
+export async function getBrands() {
+  const { data, error } = await supabase
+    .from("brands")
+    .select("*")
+    .eq("status", "active")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data || [];
 }
 
 export async function getMenuItems({ categoryId, search } = {}) {
@@ -67,8 +74,6 @@ export async function getPopularItems(limit = 8) {
   if (error) throw error;
   const items = (data || []).map(normalizeItem);
 
-  // Items with a real photo uploaded should show first on the home page;
-  // items still missing a photo (or rating) fall to the back.
   const withImage = items.filter((i) => i.images?.[0]);
   const withoutImage = items.filter((i) => !i.images?.[0]);
 
@@ -102,7 +107,23 @@ export async function submitReview({ itemId, name, rating, comment }) {
   return normalizeReview(data);
 }
 
-export async function submitOrder({ cartItems, orderType, mapLocation, address, name, phone, total }) {
+export async function deleteReview(id, itemId) {
+  const table = itemId ? "item_reviews" : "overall_reviews";
+  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function submitOrder({
+  cartItems,
+  orderType,
+  mapLocation,
+  address,
+  name,
+  phone,
+  total,
+  couponCode,
+  discountAmount,
+}) {
   const { data, error } = await supabase
     .from("orders")
     .insert({
@@ -113,11 +134,33 @@ export async function submitOrder({ cartItems, orderType, mapLocation, address, 
       customer_phone: phone,
       items: cartItems,
       total,
+      coupon_code: couponCode || null,
+      discount_amount: discountAmount || 0,
     })
     .select()
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function updateOrderStatus(id, status) {
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function trackOrder({ orderId, phone }) {
+  const { data, error } = await supabase.rpc("get_order_status", {
+    p_order_id: orderId,
+    p_phone: phone,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
 export async function getOrders() {
@@ -153,9 +196,10 @@ export async function getEnquiries() {
   return data || [];
 }
 
-// ----------------------------------------------------------------------------
-// Banners (home page auto-scrolling promo carousel — admin managed)
-// ----------------------------------------------------------------------------
+export async function deleteEnquiry(id) {
+  const { error } = await supabase.from("enquiries").delete().eq("id", id);
+  if (error) throw error;
+}
 
 export async function getBanners() {
   const { data, error } = await supabase
@@ -206,16 +250,9 @@ export function uploadBannerImage(file) {
   return uploadImage("banner-images", file);
 }
 
-// ----------------------------------------------------------------------------
-// Offers (dedicated Offers page — admin managed combo deals)
-// ----------------------------------------------------------------------------
-
 const OFFER_SELECT =
   "*, offer_items(id, quantity, item:menu_items(id, name, images), variant:menu_item_variants(id, name, price))";
 
-// Turns the raw offer_items join rows into a simple `products` array the UI
-// can render directly, and works out the combo's original (pre-discount)
-// total so the Offers page can show "You save ₹X".
 function normalizeOffer(row) {
   const products = (row.offer_items || [])
     .filter((oi) => oi.item)
@@ -252,7 +289,6 @@ export async function getAllOffers() {
   return (data || []).map(normalizeOffer);
 }
 
-// items: [{ itemId, variantId, quantity }] — the products grouped into this combo.
 export async function createOffer({ title, description, image, rate, sortOrder, items }) {
   const { data, error } = await supabase
     .from("offers")
@@ -281,7 +317,6 @@ export async function createOffer({ title, description, image, rate, sortOrder, 
   return data;
 }
 
-// `items`, if passed, fully replaces the combo's product list.
 export async function updateOffer(id, fields, items) {
   const { data, error } = await supabase
     .from("offers")
@@ -318,10 +353,6 @@ export function uploadOfferImage(file) {
   return uploadImage("offer-images", file);
 }
 
-// ----------------------------------------------------------------------------
-// Image uploads (Supabase Storage)
-// ----------------------------------------------------------------------------
-
 async function uploadImage(bucket, file) {
   const ext = file.name.split(".").pop();
   const path = `${crypto.randomUUID()}.${ext}`;
@@ -342,9 +373,27 @@ export function uploadMenuItemImage(file) {
   return uploadImage("menu-item-images", file);
 }
 
-// ----------------------------------------------------------------------------
-// Category CRUD (admin)
-// ----------------------------------------------------------------------------
+export function uploadMenuItemVideo(file) {
+  return uploadImage("menu-item-videos", file);
+}
+
+export async function uploadMultipleImages(files) {
+  const urls = [];
+  for (const file of files) {
+    const url = await uploadMenuItemImage(file);
+    urls.push(url);
+  }
+  return urls;
+}
+
+export async function uploadMultipleVideos(files) {
+  const urls = [];
+  for (const file of files) {
+    const url = await uploadMenuItemVideo(file);
+    urls.push(url);
+  }
+  return urls;
+}
 
 export async function createCategory({ name, image }) {
   const { data, error } = await supabase
@@ -372,25 +421,57 @@ export async function deleteCategory(id) {
   if (error) throw error;
 }
 
-// ----------------------------------------------------------------------------
-// Menu item CRUD (admin)
-// ----------------------------------------------------------------------------
+export async function getAllBrands() {
+  const { data, error } = await supabase
+    .from("brands")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
 
-export async function createMenuItem({ categoryId, name, image, price }) {
+export async function createBrand({ name, image }) {
+  const { data, error } = await supabase
+    .from("brands")
+    .insert({ name, image })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBrand(id, fields) {
+  const { data, error } = await supabase
+    .from("brands")
+    .update(fields)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBrand(id) {
+  const { error } = await supabase.from("brands").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export function uploadBrandImage(file) {
+  return uploadImage("brand-images", file);
+}
+
+export async function createMenuItem({ categoryId, name, images, videos }) {
   const { data: item, error } = await supabase
     .from("menu_items")
     .insert({
       category_id: categoryId,
       name,
-      images: image ? [image] : [],
+      images: images || [],
+      videos: videos || [],
     })
     .select()
     .single();
   if (error) throw error;
-  const { error: variantError } = await supabase
-    .from("menu_item_variants")
-    .insert({ item_id: item.id, name: "Regular", price });
-  if (variantError) throw variantError;
   return item;
 }
 
@@ -410,10 +491,155 @@ export async function deleteMenuItem(id) {
   if (error) throw error;
 }
 
-export async function updateVariantPrice(variantId, price) {
+export async function createVariant(itemId, fields) {
+  const { data, error } = await supabase
+    .from("menu_item_variants")
+    .insert({
+      item_id: itemId,
+      name: fields.name || "Regular",
+      price: fields.price ?? 0,
+      actual_rate: fields.actual_rate || null,
+      discount_percent: fields.discount_percent || null,
+      sort_order: fields.sort_order ?? 0,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateVariant(variantId, fields) {
+  const { data, error } = await supabase
+    .from("menu_item_variants")
+    .update({
+      name: fields.name,
+      price: fields.price,
+      actual_rate: fields.actual_rate,
+      discount_percent: fields.discount_percent,
+      sort_order: fields.sort_order,
+    })
+    .eq("id", variantId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteVariant(variantId) {
   const { error } = await supabase
     .from("menu_item_variants")
-    .update({ price })
+    .delete()
     .eq("id", variantId);
   if (error) throw error;
+}
+
+// ----------------------------------------------------------------------------
+// Coupons — flat-discount codes, shown as "Offers" on the Explore Gift page
+// and applied on the Cart page. Each coupon carries its own minimum order
+// value + discount amount, set by the admin — the cart never hardcodes the
+// ₹10000→₹500 / ₹5000→₹300 style tiers, it just asks this table.
+// ----------------------------------------------------------------------------
+function normalizeCoupon(row) {
+  return { ...row, discount_amount: Number(row.discount_amount) || 0, min_order_amount: Number(row.min_order_amount) || 0 };
+}
+
+export async function getCoupons() {
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .eq("status", "active")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data || []).map(normalizeCoupon);
+}
+
+export async function getAllCoupons() {
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data || []).map(normalizeCoupon);
+}
+
+export async function createCoupon({ name, image, code, discountAmount, minOrderAmount, validUntil, sortOrder }) {
+  const { data, error } = await supabase
+    .from("coupons")
+    .insert({
+      name,
+      image: image || null,
+      code: code.trim().toUpperCase(),
+      discount_amount: discountAmount ?? 0,
+      min_order_amount: minOrderAmount ?? 0,
+      valid_until: validUntil || null,
+      sort_order: sortOrder ?? 0,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeCoupon(data);
+}
+
+export async function updateCoupon(id, fields) {
+  const payload = {};
+  if (fields.name !== undefined) payload.name = fields.name;
+  if (fields.image !== undefined) payload.image = fields.image;
+  if (fields.code !== undefined) payload.code = fields.code.trim().toUpperCase();
+  if (fields.discountAmount !== undefined) payload.discount_amount = fields.discountAmount;
+  if (fields.minOrderAmount !== undefined) payload.min_order_amount = fields.minOrderAmount;
+  if (fields.validUntil !== undefined) payload.valid_until = fields.validUntil;
+  if (fields.sortOrder !== undefined) payload.sort_order = fields.sortOrder;
+  if (fields.status !== undefined) payload.status = fields.status;
+
+  const { data, error } = await supabase
+    .from("coupons")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeCoupon(data);
+}
+
+export async function deleteCoupon(id) {
+  const { error } = await supabase.from("coupons").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export function uploadCouponImage(file) {
+  return uploadImage("coupon-images", file);
+}
+
+// Looks up a coupon by its code and checks it against the cart total —
+// active status, not expired, and the cart meets that coupon's own minimum
+// order value. Returns { valid, coupon, message } so the Cart page can show
+// exactly why a code didn't apply.
+export async function validateCoupon(code, cartTotal) {
+  const trimmed = (code || "").trim().toUpperCase();
+  if (!trimmed) return { valid: false, message: "Enter a coupon code." };
+
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .ilike("code", trimmed)
+    .maybeSingle();
+  if (error) throw error;
+
+  if (!data) return { valid: false, message: "Invalid coupon code." };
+  const coupon = normalizeCoupon(data);
+
+  if (coupon.status !== "active") {
+    return { valid: false, message: "This coupon is no longer active." };
+  }
+  if (coupon.valid_until && new Date(coupon.valid_until) < new Date()) {
+    return { valid: false, message: "This coupon has expired." };
+  }
+  if (cartTotal < coupon.min_order_amount) {
+    return {
+      valid: false,
+      message: `Add ₹${coupon.min_order_amount - cartTotal} more to use this coupon (min. order ₹${coupon.min_order_amount}).`,
+    };
+  }
+
+  return { valid: true, coupon, message: `Coupon applied — you saved ₹${coupon.discount_amount}!` };
 }

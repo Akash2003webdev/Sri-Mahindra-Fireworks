@@ -29,9 +29,11 @@ const CartPage = lazy(() => import("./pages/CartPage"));
 const ReviewsPage = lazy(() => import("./pages/ReviewsPage"));
 const EnquiryPage = lazy(() => import("./pages/EnquiryPage"));
 const OffersPage = lazy(() => import("./pages/OffersPage"));
+const OfferPage = lazy(() => import("./pages/OfferPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const SafetyTipsPage = lazy(() => import("./pages/SafetyTipsPage"));
 const PriceListPage = lazy(() => import("./pages/PriceListPage"));
+const TrackOrderPage = lazy(() => import("./pages/TrackOrderPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 
 // Maps bottom-nav / header nav keys to real URLs, and back again — kept so
@@ -43,9 +45,11 @@ const KEY_TO_PATH = {
   reviews: "/reviews",
   enquiry: "/enquiry",
   offers: "/offers",
+  offer: "/offer",
   about: "/about",
   "safety-tips": "/safety-tips",
   "price-list": "/price-list",
+  "track-order": "/track-order",
 };
 
 function activeKeyFromPath(pathname) {
@@ -55,9 +59,11 @@ function activeKeyFromPath(pathname) {
   if (pathname.startsWith("/reviews")) return "reviews";
   if (pathname.startsWith("/enquiry")) return "enquiry";
   if (pathname.startsWith("/offers")) return "offers";
+  if (pathname.startsWith("/offer")) return "offer";
   if (pathname.startsWith("/about")) return "about";
   if (pathname.startsWith("/safety-tips")) return "safety-tips";
   if (pathname.startsWith("/price-list")) return "price-list";
+  if (pathname.startsWith("/track-order")) return "track-order";
   return "home";
 }
 
@@ -108,6 +114,21 @@ function ItemRoute({ onToast }) {
       onBack={() => navigate(-1)}
       onToast={onToast}
       onGoToCart={() => navigate("/cart")}
+    />
+  );
+}
+
+// Reads the order id/phone handed off right after checkout (via router
+// state) so Track Order can auto-load that order; works fine with neither
+// present too (plain /track-order visit shows the manual lookup form).
+function TrackOrderRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <TrackOrderPage
+      onBack={() => navigate(-1)}
+      prefillOrderId={location.state?.orderId}
+      prefillPhone={location.state?.phone}
     />
   );
 }
@@ -163,14 +184,25 @@ function AppShell() {
         <Route path="/item/:id" element={<ItemRoute onToast={showToast} />} />
         <Route
           path="/cart"
-          element={<CartPage onToast={showToast} onOrderSent={() => navigate("/")} />}
+          element={
+            <CartPage
+              onToast={showToast}
+              onOrderSent={(order) =>
+                navigate("/track-order", {
+                  state: { orderId: order?.id, phone: order?.customer_phone },
+                })
+              }
+            />
+          }
         />
         <Route path="/reviews" element={<ReviewsPage onToast={showToast} />} />
         <Route path="/enquiry" element={<EnquiryPage onToast={showToast} />} />
         <Route path="/offers" element={<OffersPage onToast={showToast} />} />
+        <Route path="/offer" element={<OfferPage />} />
         <Route path="/about" element={<AboutPage onBack={() => navigate(-1)} />} />
         <Route path="/safety-tips" element={<SafetyTipsPage onBack={() => navigate(-1)} />} />
         <Route path="/price-list" element={<PriceListPage onBack={() => navigate(-1)} />} />
+        <Route path="/track-order" element={<TrackOrderRoute />} />
         </Routes>
       </Suspense>
 

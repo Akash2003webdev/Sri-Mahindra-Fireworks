@@ -3,15 +3,18 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 import MenuItemCard from "../components/MenuItemCard";
 import { getMenuItems } from "../lib/api";
 import { useSEO } from "../lib/seo";
+import { getCategoryDisplayName } from "../lib/data";
 
 export default function CategoryPage({ category, onBack, onSelectItem, onToast }) {
+  const displayName = getCategoryDisplayName(category?.name);
+
   useSEO({
     title: category
-      ? `${category.name} | Sri Mahindra Fireworks`
-      : "Product Category | Sri Mahindra Fireworks",
+      ? `${displayName} | Mahendra Fancy Crackers`
+      : "Product Category | Mahendra Fancy Crackers",
     description: category
-      ? `${category.name} at Sri Mahindra Fireworks, Sattur. Order online for home delivery or store pickup.`
-      : "Browse this crackers category at Sri Mahindra Fireworks, Sattur.",
+      ? `${displayName} at Mahendra Fancy Crackers, Sattur. Order online for home delivery or store pickup.`
+      : "Browse this crackers category at Mahendra Fancy Crackers, Sattur.",
     path: category ? `/category/${category.id}` : undefined,
   });
 
@@ -49,7 +52,7 @@ export default function CategoryPage({ category, onBack, onSelectItem, onToast }
             <Sparkles size={11} /> Category
           </span>
           <h1 className="font-display font-black text-2xl md:text-4xl text-gray-950 tracking-tight">
-            {category?.name}
+            {displayName}
           </h1>
         </div>
       </div>

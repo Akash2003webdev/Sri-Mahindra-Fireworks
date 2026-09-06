@@ -19,20 +19,36 @@ create table if not exists categories (
 );
 
 -- ----------------------------------------------------------------------------
+-- Brands  (e.g. Bairava Brand, Standard, Sonic, Ayyan...) — powers the
+-- "Shop by Brand" section on the home page and the brand filter on Menu.
+-- ----------------------------------------------------------------------------
+create table if not exists brands (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  image text,
+  status text not null default 'active',      -- 'active' | 'inactive'
+  sort_order int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+-- ----------------------------------------------------------------------------
 -- Menu items = Products
 -- ----------------------------------------------------------------------------
 create table if not exists menu_items (
   id uuid primary key default gen_random_uuid(),
   category_id uuid references categories(id) on delete cascade,
+  brand_id uuid references brands(id) on delete set null,
   name text not null,
   description text,
   images text[] not null default '{}',
+  videos text[] not null default '{}',
   status text not null default 'available',   -- 'available' | 'sold_out'
   rating numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
 create index if not exists idx_menu_items_category on menu_items(category_id);
+create index if not exists idx_menu_items_brand on menu_items(brand_id);
 
 -- Pack sizes / rates for a product, e.g. "1 Box - ₹120", "5 Box - ₹550"
 create table if not exists menu_item_variants (
@@ -88,12 +104,16 @@ create table if not exists orders (
   id uuid primary key default gen_random_uuid(),
   order_type text not null,                   -- 'Home Delivery' | 'Store Pickup'
   table_number text,
+  map_location text,                          -- Google Maps link customer shared for delivery
   address text,
   customer_name text not null,
   customer_phone text not null,
   items jsonb not null default '[]',
   total numeric not null default 0,
-  created_at timestamptz not null default now()
+  status text not null default 'pending'       -- 'pending' | 'confirmed' | 'packed' | 'out_for_delivery' | 'completed' | 'cancelled'
+    check (status in ('pending', 'confirmed', 'packed', 'out_for_delivery', 'completed', 'cancelled')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 -- ----------------------------------------------------------------------------
@@ -144,6 +164,7 @@ create index if not exists idx_item_reviews_item on item_reviews(item_id);
 -- ============================================================================
 
 alter table categories enable row level security;
+alter table brands enable row level security;
 alter table menu_items enable row level security;
 alter table menu_item_variants enable row level security;
 alter table banners enable row level security;
@@ -156,6 +177,7 @@ alter table item_reviews enable row level security;
 
 -- Public read
 create policy "public read categories" on categories for select using (true);
+create policy "public read brands" on brands for select using (true);
 create policy "public read menu_items" on menu_items for select using (true);
 create policy "public read menu_item_variants" on menu_item_variants for select using (true);
 create policy "public read banners" on banners for select using (true);
@@ -172,37 +194,87 @@ create policy "public insert item_reviews" on item_reviews for insert with check
 
 -- Admin write (see note above — trusts the anon key)
 create policy "admin write categories" on categories for all using (true) with check (true);
+create policy "admin write brands" on brands for all using (true) with check (true);
 create policy "admin write menu_items" on menu_items for all using (true) with check (true);
 create policy "admin write menu_item_variants" on menu_item_variants for all using (true) with check (true);
 create policy "admin write banners" on banners for all using (true) with check (true);
 create policy "admin write offers" on offers for all using (true) with check (true);
 create policy "admin write offer_items" on offer_items for all using (true) with check (true);
 create policy "admin read orders" on orders for select using (true);
+create policy "admin update orders" on orders for update using (true) with check (true);
 create policy "admin read enquiries" on enquiries for select using (true);
 
 -- ============================================================================
--- Storage buckets — product/category/banner/offer images
+-- Order tracking for customers
+--
+-- The `orders` table itself stays admin-only for reads (see policies above),
+-- so a random visitor can't list every customer's name/phone/address. This
+-- function lets a customer look up ONLY their own order — they must supply
+-- the exact order id (given right after checkout) together with the phone
+-- number used to place it. Both must match or nothing is returned.
+-- ============================================================================
+
+create or replace function get_order_status(p_order_id uuid, p_phone text)
+returns table (
+  id uuid,
+  order_type text,
+  status text,
+  total numeric,
+  items jsonb,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select o.id, o.order_type, o.status, o.total, o.items, o.created_at, o.updated_at
+  from orders o
+  where o.id = p_order_id and o.customer_phone = p_phone
+$$;
+
+grant execute on function get_order_status(uuid, text) to anon, authenticated;
+
+-- ============================================================================
+-- Storage buckets — product/category/banner/offer/brand images + item videos
 -- ============================================================================
 
 insert into storage.buckets (id, name, public)
 values
   ('category-images', 'category-images', true),
+  ('brand-images', 'brand-images', true),
   ('menu-item-images', 'menu-item-images', true),
   ('banner-images', 'banner-images', true),
   ('offer-images', 'offer-images', true)
 on conflict (id) do nothing;
 
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('menu-item-videos', 'menu-item-videos', true, 52428800) -- 50 MB per file
+on conflict (id) do nothing;
+
+create policy "public read item videos" on storage.objects
+  for select using (bucket_id = 'menu-item-videos');
+
+create policy "public upload item videos" on storage.objects
+  for insert with check (bucket_id = 'menu-item-videos');
+
+create policy "public update item videos" on storage.objects
+  for update using (bucket_id = 'menu-item-videos');
+
+create policy "public delete item videos" on storage.objects
+  for delete using (bucket_id = 'menu-item-videos');
+
 create policy "public read bucket images" on storage.objects
-  for select using (bucket_id in ('category-images', 'menu-item-images', 'banner-images', 'offer-images'));
+  for select using (bucket_id in ('category-images', 'brand-images', 'menu-item-images', 'banner-images', 'offer-images'));
 
 create policy "public upload bucket images" on storage.objects
-  for insert with check (bucket_id in ('category-images', 'menu-item-images', 'banner-images', 'offer-images'));
+  for insert with check (bucket_id in ('category-images', 'brand-images', 'menu-item-images', 'banner-images', 'offer-images'));
 
 create policy "public update bucket images" on storage.objects
-  for update using (bucket_id in ('category-images', 'menu-item-images', 'banner-images', 'offer-images'));
+  for update using (bucket_id in ('category-images', 'brand-images', 'menu-item-images', 'banner-images', 'offer-images'));
 
 create policy "public delete bucket images" on storage.objects
-  for delete using (bucket_id in ('category-images', 'menu-item-images', 'banner-images', 'offer-images'));
+  for delete using (bucket_id in ('category-images', 'brand-images', 'menu-item-images', 'banner-images', 'offer-images'));
 
 -- ============================================================================
 -- Seed data — sample crackers categories & products so the site isn't empty.
@@ -219,6 +291,15 @@ insert into categories (name, sort_order) values
   ('Rockets', 6),
   ('Fancy & Novelty', 7),
   ('Kids Special', 8)
+on conflict do nothing;
+
+insert into brands (name, sort_order) values
+  ('Bairava Brand', 1),
+  ('Standard Fireworks', 2),
+  ('Ayyan Fireworks', 3),
+  ('Sony Fireworks', 4),
+  ('Coronation Fireworks', 5),
+  ('Sri Kaliswari Fireworks', 6)
 on conflict do nothing;
 
 -- Sample products with one price variant each

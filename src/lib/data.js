@@ -5,7 +5,7 @@
 // numbers below to your actual crackers shop details before going live.
 
 export const restaurantInfo = {
-  name: "Sri Mahindra Fireworks",
+  name: "Mahendra Fancy Crackers",
   tagline: "Light Up Every Celebration",
   address: "4/269, Sattur Main Road, Krishnapuram, Elayirampannai - 626201",
   phone: "8754977578",
@@ -22,6 +22,21 @@ export const restaurantInfo = {
 };
 
 export const orderTypes = ["Home Delivery", "Store Pickup"];
+
+// Categories are stored in the DB with their real/original name (e.g. the
+// "Gift Box" category), but we want to *display* certain ones under a
+// different, more customer-friendly label everywhere in the UI (home page
+// card, category page title) without touching the underlying data or its
+// links to products. Add more { from, to } mappings here any time.
+const CATEGORY_DISPLAY_NAME_MAP = {
+  "gift box": "Combo Packs",
+};
+
+export function getCategoryDisplayName(name) {
+  if (!name) return name;
+  const mapped = CATEGORY_DISPLAY_NAME_MAP[name.trim().toLowerCase()];
+  return mapped || name;
+}
 
 // Shown as a strip under the homepage banner — standard, honest framing for
 // how firecracker sales legally work in India (enquiry / WhatsApp confirm,
@@ -107,7 +122,7 @@ export const safetyTips = [
 export const aboutContent = {
   heading: "About Us",
   intro:
-    "Sri Mahindra Fireworks (Bairava Brand) has been bringing light, sound, and colour to festivals across Tamil Nadu — sourced directly from trusted, licensed manufacturers in Sivakasi.",
+    "Mahendra Fancy Crackers (Bairava Brand) has been bringing light, sound, and colour to festivals across Tamil Nadu — sourced directly from trusted, licensed manufacturers in Sivakasi.",
   points: [
     "Wide range of sparklers, flower pots, ground chakkars, aerial shots, sound crackers, and gift boxes",
     "Sourced from licensed, quality-tested manufacturers under the Bairava Brand",

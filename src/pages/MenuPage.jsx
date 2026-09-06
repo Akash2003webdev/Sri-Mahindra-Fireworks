@@ -4,6 +4,7 @@ import { Search, Plus, Minus, ShoppingBag, LayoutGrid, List, ArrowRight } from "
 import { getCategories, getMenuItems } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import { useCart } from "../context/CartContext";
+import { getCategoryDisplayName } from "../lib/data";
 import logo from "../assets/placeholder.png";
 
 const MENU_VIEW_KEY = "slc_menu_view_v1";
@@ -13,9 +14,9 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
   const { items: cartItems, addItem, updateQuantity, subtotal = 0 } = useCart();
 
   useSEO({
-    title: "Products | Sri Mahindra Fireworks - Full Cracker Catalogue",
+    title: "Products | Mahendra Fancy Crackers - Full Cracker Catalogue",
     description:
-      "Explore the full range of crackers at Sri Mahindra Fireworks, Sattur — sparklers, flower pots, sound crackers, aerial shots, gift boxes and more.",
+      "Explore the full range of crackers at Mahendra Fancy Crackers, Sattur — sparklers, flower pots, sound crackers, aerial shots, gift boxes and more.",
     path: "/menu",
   });
 
@@ -185,7 +186,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                <option key={cat.id} value={cat.id}>{getCategoryDisplayName(cat.name)}</option>
               ))}
             </select>
 
@@ -290,7 +291,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                   <div className="p-4 flex items-center justify-between gap-2 bg-white grow w-full">
                     <div className="space-y-0.5">
                       <h3 className="font-semibold text-sm md:text-base text-stone-800 tracking-tight group-hover:text-[#730ca8] transition-colors duration-300">
-                        {cat.name}
+                        {getCategoryDisplayName(cat.name)}
                       </h3>
                       <p className="text-[11px] md:text-xs font-medium text-stone-400 tracking-wide">
                         {counts[cat.id] !== undefined
@@ -328,7 +329,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                 <div className="bg-[#730ca8] text-white rounded-xl px-5 py-3 shadow-md flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-yellow-300"></div>
                   <h2 className="font-display font-black text-xs md:text-sm uppercase tracking-wider">
-                    {cat.name}
+                    {getCategoryDisplayName(cat.name)}
                   </h2>
                 </div>
 
@@ -337,7 +338,11 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                   {cat.filteredItems.map((item) => {
                     const defaultVariant = item.variants?.[0];
                     const price = Number(defaultVariant?.price ?? 0);
-                    const mrp = Number(defaultVariant?.mrp ?? price * 5);
+                    const actualRate = Number(defaultVariant?.actual_rate ?? 0);
+                    const discountPercent = Number(defaultVariant?.discount_percent ?? 0);
+                    // Real MRP from the backend when present; otherwise just
+                    // show the selling price with no fake strike-through.
+                    const hasDiscount = actualRate > price;
                     const qty = getCartQty(item);
                     const itemTotal = price * qty;
 
@@ -384,9 +389,18 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                             <div className="text-xs md:text-sm font-black text-[#ff5e14]">
                               ₹{price.toLocaleString()}
                             </div>
-                            <div className="text-[10px] text-stone-400 line-through">
-                              ₹{mrp.toLocaleString()}
-                            </div>
+                            {hasDiscount && (
+                              <div className="flex items-center gap-1 md:justify-end">
+                                <span className="text-[10px] text-stone-400 line-through">
+                                  ₹{actualRate.toLocaleString()}
+                                </span>
+                                {discountPercent > 0 && (
+                                  <span className="text-[9px] font-bold text-emerald-600">
+                                    {discountPercent}% off
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Quantity Stepper */}

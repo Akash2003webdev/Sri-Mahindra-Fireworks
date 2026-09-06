@@ -125,9 +125,23 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
 
         <div className="flex items-center justify-between mt-auto pt-2">
           {defaultVariant && (
-            <span className="text-sm md:text-base font-bold text-primary-600">
-              ₹{defaultVariant.price}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-sm md:text-base font-bold text-primary-600">
+                ₹{defaultVariant.price}
+              </span>
+              {Number(defaultVariant.actual_rate) > Number(defaultVariant.price) && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-gray-400 line-through">
+                    ₹{defaultVariant.actual_rate}
+                  </span>
+                  {defaultVariant.discount_percent > 0 && (
+                    <span className="text-[9px] font-bold text-emerald-600">
+                      {defaultVariant.discount_percent}% off
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Quick Add Button / Quantity Stepper */}
