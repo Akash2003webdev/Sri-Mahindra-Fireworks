@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Minus, Heart, PlayCircle } from "lucide-react";
 import Stars from "./Stars";
 import { useCart } from "../context/CartContext";
+import logo from "../assets/product-placeholder.png";
 
 const BADGE_STYLES = {
   bestseller: "bg-primary-600 text-white",
@@ -40,7 +41,7 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
       discountPercent: defaultVariant?.discount_percent || null,
       variantId: defaultVariant?.id ?? null,
       variantName: defaultVariant?.name ?? null,
-      image: item.images?.[0],
+      image: item.images?.[0] || logo,
       categoryName: item.categoryName,
       quantity: 1,
     });
@@ -68,7 +69,7 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
       {/* Image Container */}
       <div className="relative h-32 md:h-40 overflow-hidden">
         <img
-          src={item.images?.[0]}
+          src={item.images?.[0] || logo}
           alt={item.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />

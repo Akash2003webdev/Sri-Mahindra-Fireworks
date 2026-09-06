@@ -22,7 +22,7 @@ import { orderTypes, minOrderAmount } from "../lib/data";
 import { buildOrderMessage, sendWhatsAppMessage } from "../lib/whatsapp";
 import { submitOrder, validateCoupon } from "../lib/api";
 import { useSEO } from "../lib/seo";
-import logo from "../assets/placeholder.png";
+import logo from "../assets/product-placeholder.png";
 
 export default function CartPage({ onToast, onOrderSent }) {
   useSEO({

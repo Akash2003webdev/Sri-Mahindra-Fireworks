@@ -5,7 +5,8 @@ import { getCategories, getMenuItems } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import { useCart } from "../context/CartContext";
 import { getCategoryDisplayName } from "../lib/data";
-import logo from "../assets/placeholder.png";
+import logo from "../assets/product-placeholder.png";
+import placeholder from "../assets/placeholder.png";
 
 const MENU_VIEW_KEY = "slc_menu_view_v1";
 
@@ -286,7 +287,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                 >
                   <div className="h-36 md:h-48 w-full overflow-hidden relative bg-stone-100">
                     <img
-                      src={cat.image || logo}
+                      src={cat.image || placeholder}
                       alt={cat.name}
                       className="w-full h-full object-cover transform scale-100 group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
@@ -359,7 +360,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                         {/* Left: Image & Name */}
                         <div className="flex items-center gap-3.5 w-full md:flex-1 min-w-0">
                           <img
-                            src={item.images?.[0] || cat.image || logo}
+                            src={item.images?.[0] || logo}
                             alt={item.name}
                             onClick={() => onSelectItem?.(item)}
                             className="w-12 h-12 md:w-11 md:h-11 shrink-0 rounded-xl object-cover border border-stone-200 cursor-pointer bg-stone-100 shadow-sm"

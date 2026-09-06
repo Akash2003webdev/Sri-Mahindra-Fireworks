@@ -22,11 +22,14 @@ export async function getRestaurantInfo() {
 export async function getCategories() {
   const { data, error } = await supabase
     .from("categories")
-    .select("*")
+    .select("*, menu_items(count)")
     .eq("status", "active")
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  return data || [];
+  return (data || []).map((c) => ({
+    ...c,
+    count: c.menu_items?.[0]?.count ?? 0,
+  }));
 }
 
 export async function getCategoryById(id) {
@@ -154,6 +157,11 @@ export async function updateOrderStatus(id, status) {
   return data;
 }
 
+export async function deleteOrder(id) {
+  const { error } = await supabase.from("orders").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function trackOrder({ orderId, phone }) {
   const { data, error } = await supabase.rpc("get_order_status", {
     p_order_id: orderId,
@@ -220,10 +228,15 @@ export async function getAllBanners() {
   return data || [];
 }
 
-export async function createBanner({ image, link, sortOrder }) {
+export async function createBanner({ image, link, sortOrder, placement }) {
   const { data, error } = await supabase
     .from("banners")
-    .insert({ image, link: link || null, sort_order: sortOrder ?? 0 })
+    .insert({
+      image,
+      link: link || null,
+      sort_order: sortOrder ?? 0,
+      placement: placement === "side" ? "side" : "main",
+    })
     .select()
     .single();
   if (error) throw error;

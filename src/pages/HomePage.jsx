@@ -32,6 +32,7 @@ import CouponCard from "../components/CouponCard";
 
 import { useSEO } from "../lib/seo";
 import { restaurantInfo, getCategoryDisplayName } from "../lib/data";
+import categoryPlaceholder from "../assets/placeholder.png";
 
 // Used only until an admin uploads real banners/brands in the DB — once
 // Admin → Banners / Admin → Brands has rows, those replace these.
@@ -101,14 +102,19 @@ export default function HomePage({
   const comboScrollRef = useRef(null);
   const reviewScrollRef = useRef(null);
 
-  // Banners come from Admin → Banners (backend). Until at least one is
-  // uploaded there, we show the bundled placeholder images instead so the
-  // hero section is never empty.
-  const bannerImages = banners.map((b) => b.image).filter(Boolean);
-  const mainSlides = bannerImages.length ? bannerImages : FALLBACK_MAIN_SLIDES;
-  const sideSlides = bannerImages.length
-    ? bannerImages.slice().reverse()
-    : FALLBACK_SIDE_SLIDES;
+  // The bundled placeholder images always show first. Whatever the admin
+  // adds under Admin → Banners (tagged Main or Side) shows right after them,
+  // instead of replacing them.
+  const backendMainImages = banners
+    .filter((b) => (b.placement || "main") === "main")
+    .map((b) => b.image)
+    .filter(Boolean);
+  const backendSideImages = banners
+    .filter((b) => b.placement === "side")
+    .map((b) => b.image)
+    .filter(Boolean);
+  const mainSlides = [...FALLBACK_MAIN_SLIDES, ...backendMainImages];
+  const sideSlides = [...FALLBACK_SIDE_SLIDES, ...backendSideImages];
 
   useEffect(() => {
     getCategories().then((data) => setCategories(data));
@@ -330,7 +336,7 @@ export default function HomePage({
                 >
                   <div className="h-[100px] md:h-[130px] w-full flex items-center justify-center mb-5 transition-transform duration-500 group-hover/card:scale-110">
                     <img
-                      src={cat.image || "/logo.png"}
+                      src={cat.image || categoryPlaceholder}
                       alt={cat.name}
                       className="max-h-full max-w-full object-contain drop-shadow-sm rounded-lg"
                     />
@@ -340,7 +346,7 @@ export default function HomePage({
                       {getCategoryDisplayName(cat.name)}
                     </h5>
                     <span className="text-[10px] md:text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full inline-block border border-slate-200">
-                      {cat.count || Math.floor(Math.random() * 20) + 1} items
+                      {cat.count ?? 0} items
                     </span>
                   </div>
                 </div>

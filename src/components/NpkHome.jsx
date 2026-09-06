@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Flame, ShoppingCart, Sparkles, ArrowRight } from "lucide-react";
 import FireworksCanvas from "./FireworksCanvas";
+import categoryPlaceholder from "../assets/placeholder.png";
 
 /* ------------------------------------------------------------------ */
 /* Top scrolling announcement marquee                                  */
@@ -173,7 +174,7 @@ export function CategoryGrid({ categories = [], onSelect }) {
         >
           <div className="h-[85px] w-[85px] overflow-hidden rounded-xl">
             <img
-              src={cat.image}
+              src={cat.image || categoryPlaceholder}
               alt={cat.name}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
               draggable={false}

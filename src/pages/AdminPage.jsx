@@ -41,6 +41,7 @@ import {
   getOverallReviews,
   getOrders,
   updateOrderStatus,
+  deleteOrder,
   getEnquiries,
   deleteEnquiry,
   deleteReview,
@@ -877,7 +878,7 @@ function CategoriesTab() {
               className="bg-white border border-gray-200 rounded-2xl p-3.5 flex items-center gap-4 shadow-sm hover:border-gray-300 transition-all"
             >
               <img
-                src={c.image}
+                src={c.image || "/placeholder.png"}
                 alt={c.name}
                 className="w-14 h-14 rounded-xl object-cover border border-gray-100"
               />
@@ -1369,6 +1370,7 @@ function ReviewsTab() {
 function BannerForm({ initial, onSave, onCancel }) {
   const [link, setLink] = useState(initial?.link || "");
   const [sortOrder, setSortOrder] = useState(initial?.sort_order ?? 0);
+  const [placement, setPlacement] = useState(initial?.placement || "main");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(initial?.image || "");
   const [saving, setSaving] = useState(false);
@@ -1394,6 +1396,7 @@ function BannerForm({ initial, onSave, onCancel }) {
         image: imageUrl,
         link: link.trim(),
         sortOrder: Number(sortOrder) || 0,
+        placement,
       });
     } catch (err) {
       setError(err.message);
@@ -1411,6 +1414,36 @@ function BannerForm({ initial, onSave, onCancel }) {
         onFile={handleFile}
         fallbackIcon={GalleryHorizontal}
       />
+
+      <div className="space-y-1">
+        <label className="text-xs font-bold text-gray-600">
+          Banner Position
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPlacement("main")}
+            className={`py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
+              placement === "main"
+                ? "bg-primary-600 text-white border-primary-600"
+                : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            Main Banner
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlacement("side")}
+            className={`py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
+              placement === "side"
+                ? "bg-primary-600 text-white border-primary-600"
+                : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            Side Banner
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600">
@@ -1507,8 +1540,9 @@ function BannersTab() {
         count={banners?.length}
       />
       <p className="text-xs text-gray-400 -mt-4 mb-5">
-        Add at least 3 images — they auto-scroll on the home page in place of a
-        single hero image.
+        Choose Main or Side for each banner. Main shows in the big hero slot,
+        Side shows in the smaller slot next to it — both appear on the home
+        page alongside the default images.
       </p>
       {error && <ErrorRow message={error} />}
       {!error && !banners && <LoadingRow />}
@@ -1549,16 +1583,27 @@ function BannersTab() {
                 className="w-20 h-14 rounded-xl object-cover border border-gray-100 shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => toggleStatus(b)}
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                    b.status === "active"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-gray-100 text-gray-500 border-gray-200"
-                  }`}
-                >
-                  {b.status === "active" ? "Active" : "Inactive"}
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => toggleStatus(b)}
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                      b.status === "active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-gray-100 text-gray-500 border-gray-200"
+                    }`}
+                  >
+                    {b.status === "active" ? "Active" : "Inactive"}
+                  </button>
+                  <span
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                      b.placement === "side"
+                        ? "bg-sky-50 text-sky-700 border-sky-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    {b.placement === "side" ? "Side" : "Main"}
+                  </span>
+                </div>
                 <p className="text-xs text-gray-400 truncate mt-1">
                   {b.link || "No link"}
                 </p>
@@ -1637,7 +1682,7 @@ function ComboProductPicker({
                 )}
               </button>
               <img
-                src={item.images?.[0]}
+                src={item.images?.[0] || "/product-placeholder.png"}
                 alt=""
                 className="w-9 h-9 rounded-lg object-cover border border-gray-100 shrink-0"
               />
@@ -2307,6 +2352,25 @@ function OrdersTab() {
     }
   }
 
+  async function handleDelete(orderId) {
+    const order = orders?.find((o) => o.id === orderId);
+    if (order && order.status !== "completed") {
+      setError("Only delivered / picked up orders can be deleted.");
+      return;
+    }
+    if (!confirm("Delete this order? This can't be undone.")) return;
+    setSavingId(orderId);
+    try {
+      await deleteOrder(orderId);
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      setExpandedId((id) => (id === orderId ? null : id));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   return (
     <div className="animate-fade-in">
       <SectionHeader title="WhatsApp Orders Ledger" count={orders?.length} />
@@ -2459,6 +2523,27 @@ function OrdersTab() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    {o.status === "completed" ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(o.id);
+                        }}
+                        disabled={savingId === o.id}
+                        className="flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl px-3 py-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <Trash2 size={13} /> Delete Order
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-gray-400 font-semibold">
+                        Delete unlocks once the order is marked{" "}
+                        {o.order_type === "Store Pickup" ? "Picked Up" : "Delivered"}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

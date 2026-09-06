@@ -15,7 +15,7 @@ import ReviewCard from "../components/ReviewCard";
 import { useCart } from "../context/CartContext";
 import { getItemReviews, submitReview } from "../lib/api";
 import { useSEO } from "../lib/seo";
-import logo from "../assets/placeholder.png";
+import logo from "../assets/product-placeholder.png";
 
 export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
   useSEO({

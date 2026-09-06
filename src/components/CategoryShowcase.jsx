@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
+import categoryPlaceholder from '../assets/placeholder.png';
 
 export default function CategoryShowcase({
   categories = [],
@@ -65,7 +66,7 @@ export default function CategoryShowcase({
                 }`}
               >
                 <img
-                  src={cat.image}
+                  src={cat.image || categoryPlaceholder}
                   alt={cat.name}
                   className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                   draggable={false}
