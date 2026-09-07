@@ -162,16 +162,7 @@ export async function deleteOrder(id) {
   if (error) throw error;
 }
 
-export async function trackOrder({ orderId, phone }) {
-  const { data, error } = await supabase.rpc("get_order_status", {
-    p_order_id: orderId,
-    p_phone: phone,
-  });
-  if (error) throw error;
-  return data?.[0] || null;
-}
-
-// Returns ALL orders placed with this phone number (not just one order id).
+// Returns ALL orders placed with this phone number.
 export async function trackOrdersByPhone({ phone }) {
   const { data, error } = await supabase.rpc("get_orders_by_phone", {
     p_phone: phone,

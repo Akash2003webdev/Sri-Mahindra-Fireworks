@@ -1,10 +1,11 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useRef } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   useNavigate,
   useLocation,
+  useNavigationType,
   useParams,
 } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
@@ -70,6 +71,81 @@ function activeKeyFromPath(pathname) {
   return "home";
 }
 
+// Remembers scroll position per history entry (location.key) so going back
+// (e.g. from an item detail page to the menu) restores exactly where the
+// user was, instead of always jumping to the top. Forward navigation
+// (clicking into a new page) still starts at the top as usual.
+//
+// The position for the CURRENT page is tracked continuously via a scroll
+// listener while the user is on it — not read once when leaving, because
+// by the time a route change effect runs, the new (often shorter) page has
+// already replaced the old one in the DOM and window.scrollY no longer
+// reflects the page being left. This is what made earlier attempts save
+// the wrong number.
+//
+// The destination page (e.g. Menu) also fetches its categories/items/images
+// async, so right after mount the page is short (loading skeleton) and a
+// one-shot scrollTo gets silently clamped back to 0 — there's nowhere to
+// scroll to yet. We watch the page's height with a ResizeObserver and keep
+// re-applying the saved scroll position every time it grows, until it
+// actually sticks (or a generous timeout passes).
+function useScrollRestoration() {
+  const location = useLocation();
+  const navigationType = useNavigationType(); // "POP" | "PUSH" | "REPLACE"
+  const positions = useRef(new Map());
+
+  // Continuously record the current page's scroll position as the user
+  // scrolls, so whatever value we have saved when they navigate away is
+  // always accurate. We deliberately do NOT write an initial value here —
+  // that would immediately clobber a saved position with this page's
+  // just-landed (often 0) scrollY before the restore effect below gets to
+  // read it.
+  useEffect(() => {
+    const key = location.key;
+    const onScroll = () => positions.current.set(key, window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [location.key]);
+
+  // Apply (or restore) the scroll position for the page we just landed on.
+  useEffect(() => {
+    const savedY = positions.current.get(location.key);
+    const targetY = navigationType === "POP" && savedY != null ? savedY : 0;
+
+    window.scrollTo(0, targetY);
+    if (targetY === 0) return;
+
+    let settled = false;
+    const reapply = () => {
+      if (settled) return;
+      window.scrollTo(0, targetY);
+      if (Math.abs(window.scrollY - targetY) < 2) settled = true;
+    };
+
+    // Reacts the moment new content (categories, images, etc.) changes the
+    // page height — the main way this actually needs to fire.
+    const observer = new ResizeObserver(reapply);
+    observer.observe(document.body);
+
+    // Fallback poll in case something resizes without triggering the
+    // observer (e.g. late image decode on some browsers).
+    const poll = setInterval(reapply, 100);
+    const stopTimer = setTimeout(() => {
+      settled = true;
+      observer.disconnect();
+      clearInterval(poll);
+    }, 6000);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(poll);
+      clearTimeout(stopTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+}
+
+
 // Fetches the category by :id from the URL so a direct link / crawler hit
 // works even without the in-app click state.
 function CategoryRoute({ onToast }) {
@@ -82,7 +158,6 @@ function CategoryRoute({ onToast }) {
     if (!category || category.id !== id) {
       getCategoryById(id).then(setCategory).catch(() => {});
     }
-    window.scrollTo(0, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -107,7 +182,6 @@ function ItemRoute({ onToast }) {
     if (!item || item.id !== id) {
       getMenuItemById(id).then(setItem).catch(() => {});
     }
-    window.scrollTo(0, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -130,7 +204,6 @@ function TrackOrderRoute() {
   return (
     <TrackOrderPage
       onBack={() => navigate(-1)}
-      prefillOrderId={location.state?.orderId}
       prefillPhone={location.state?.phone}
     />
   );
@@ -139,6 +212,7 @@ function TrackOrderRoute() {
 function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  useScrollRestoration();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [toast, setToast] = useState(null);
@@ -150,7 +224,6 @@ function AppShell() {
   // Same signature Header/BottomNav already call: onNavigate("menu") etc.
   function goTo(key) {
     navigate(KEY_TO_PATH[key] || "/");
-    window.scrollTo(0, 0);
   }
 
   const activePage = activeKeyFromPath(location.pathname);

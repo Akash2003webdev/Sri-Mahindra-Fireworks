@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   PackageSearch,
   Phone,
+  User,
   Search,
   Loader2,
   CheckCircle2,
@@ -13,12 +14,12 @@ import {
 } from "lucide-react";
 import { useSEO } from "../lib/seo";
 import { restaurantInfo } from "../lib/data";
-import { trackOrder, trackOrdersByPhone } from "../lib/api";
+import { trackOrdersByPhone } from "../lib/api";
 import { STATUS_STEPS, getStatusMeta } from "../lib/orderStatus";
 
-const STORAGE_KEY = "mfc_my_orders"; // [{ id, phone }] — remembered on this device only
+const STORAGE_KEY = "mfc_my_orders"; // [{ phone }] — remembered on this device only
 
-function loadSavedOrders() {
+function loadSavedPhones() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
   } catch {
@@ -26,9 +27,9 @@ function loadSavedOrders() {
   }
 }
 
-function saveOrder(id, phone) {
-  const existing = loadSavedOrders().filter((o) => o.id !== id);
-  const next = [{ id, phone }, ...existing].slice(0, 10);
+function savePhone(phone) {
+  const existing = loadSavedPhones().filter((p) => p !== phone);
+  const next = [phone, ...existing].slice(0, 5);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
@@ -165,14 +166,14 @@ function OrderStatusCard({ order }) {
   );
 }
 
-export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone }) {
+export default function TrackOrderPage({ onBack, prefillPhone }) {
   useSEO({
     title: `Track Order | ${restaurantInfo.name}`,
     description: "Check the live status of your crackers order.",
     path: "/track-order",
   });
 
-  const [orderId, setOrderId] = useState(prefillOrderId || "");
+  const [name, setName] = useState(""); // not used for lookup — just collected
   const [phone, setPhone] = useState(prefillPhone || "");
   const [results, setResults] = useState(null); // array of orders, or null if no search done yet
   const [loading, setLoading] = useState(false);
@@ -181,22 +182,21 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
   const [savedResults, setSavedResults] = useState([]);
   const [savedLoading, setSavedLoading] = useState(true);
 
-  async function runLookup(id, ph) {
-    if (!id || !ph) return null;
+  async function lookupByPhone(ph) {
     try {
-      return await trackOrder({ orderId: id, phone: ph });
+      return await trackOrdersByPhone({ phone: ph });
     } catch {
-      return null;
+      return [];
     }
   }
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const saved = loadSavedOrders();
-      const results = await Promise.all(saved.map((o) => runLookup(o.id, o.phone)));
+      const savedPhones = loadSavedPhones();
+      const lists = await Promise.all(savedPhones.map((ph) => lookupByPhone(ph)));
       if (!cancelled) {
-        setSavedResults(results.filter(Boolean));
+        setSavedResults(lists.flat());
         setSavedLoading(false);
       }
     })();
@@ -206,51 +206,31 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
   }, []);
 
   useEffect(() => {
-    if (prefillOrderId && prefillPhone) {
-      saveOrder(prefillOrderId, prefillPhone);
-      handleSearch(prefillOrderId, prefillPhone);
+    if (prefillPhone) {
+      savePhone(prefillPhone);
+      handleSearch(prefillPhone);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillOrderId, prefillPhone]);
+  }, [prefillPhone]);
 
-  async function handleSearch(idArg, phoneArg) {
-    const id = (idArg ?? orderId).trim();
+  async function handleSearch(phoneArg) {
     const ph = (phoneArg ?? phone).trim();
     if (ph.length < 10) {
-      setError("Enter the phone number used to place your order(s).");
+      setError("Enter the phone number used to place your order.");
       return;
     }
     setLoading(true);
     setError(null);
     setResults(null);
 
-    // If an order ID is given, look up that exact order.
-    // Otherwise, show every order placed with this phone number.
-    if (id) {
-      const order = await runLookup(id, ph);
-      setLoading(false);
-      if (!order) {
-        setError("No matching order found. Double-check the order ID and phone number.");
-        return;
-      }
-      setResults([order]);
-      saveOrder(id, ph);
+    const orders = await lookupByPhone(ph);
+    setLoading(false);
+    if (!orders.length) {
+      setError("No orders found for this phone number.");
       return;
     }
-
-    try {
-      const orders = await trackOrdersByPhone({ phone: ph });
-      setLoading(false);
-      if (!orders.length) {
-        setError("No orders found for this phone number.");
-        return;
-      }
-      setResults(orders);
-      orders.forEach((o) => saveOrder(o.id, ph));
-    } catch {
-      setLoading(false);
-      setError("Couldn't fetch your orders. Please try again.");
-    }
+    setResults(orders);
+    savePhone(ph);
   }
 
   return (
@@ -271,17 +251,17 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
         Track Your Order
       </h1>
       <p className="text-sm text-gray-500 mb-6">
-        Enter the phone number you used at checkout to see all your orders — or add an Order ID to look up just one.
+        Enter your name and the phone number you used at checkout to see all your orders.
       </p>
 
       <div className="rounded-2xl border border-gray-100 bg-white p-4 md:p-5 shadow-sm mb-6">
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <div className="relative">
-            <PackageSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-              placeholder="Order ID (optional)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
               className="w-full rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#730ca8]/30"
             />
           </div>
