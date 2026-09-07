@@ -171,6 +171,15 @@ export async function trackOrder({ orderId, phone }) {
   return data?.[0] || null;
 }
 
+// Returns ALL orders placed with this phone number (not just one order id).
+export async function trackOrdersByPhone({ phone }) {
+  const { data, error } = await supabase.rpc("get_orders_by_phone", {
+    p_phone: phone,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getOrders() {
   const { data, error } = await supabase
     .from("orders")

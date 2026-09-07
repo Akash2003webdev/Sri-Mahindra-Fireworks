@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useSEO } from "../lib/seo";
 import { restaurantInfo } from "../lib/data";
-import { trackOrder } from "../lib/api";
+import { trackOrder, trackOrdersByPhone } from "../lib/api";
 import { STATUS_STEPS, getStatusMeta } from "../lib/orderStatus";
 
 const STORAGE_KEY = "mfc_my_orders"; // [{ id, phone }] — remembered on this device only
@@ -174,7 +174,7 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
 
   const [orderId, setOrderId] = useState(prefillOrderId || "");
   const [phone, setPhone] = useState(prefillPhone || "");
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState(null); // array of orders, or null if no search done yet
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -216,21 +216,41 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
   async function handleSearch(idArg, phoneArg) {
     const id = (idArg ?? orderId).trim();
     const ph = (phoneArg ?? phone).trim();
-    if (!id || ph.length < 10) {
-      setError("Enter the order ID and the phone number used to place it.");
+    if (ph.length < 10) {
+      setError("Enter the phone number used to place your order(s).");
       return;
     }
     setLoading(true);
     setError(null);
-    setResult(null);
-    const order = await runLookup(id, ph);
-    setLoading(false);
-    if (!order) {
-      setError("No matching order found. Double-check the order ID and phone number.");
+    setResults(null);
+
+    // If an order ID is given, look up that exact order.
+    // Otherwise, show every order placed with this phone number.
+    if (id) {
+      const order = await runLookup(id, ph);
+      setLoading(false);
+      if (!order) {
+        setError("No matching order found. Double-check the order ID and phone number.");
+        return;
+      }
+      setResults([order]);
+      saveOrder(id, ph);
       return;
     }
-    setResult(order);
-    saveOrder(id, ph);
+
+    try {
+      const orders = await trackOrdersByPhone({ phone: ph });
+      setLoading(false);
+      if (!orders.length) {
+        setError("No orders found for this phone number.");
+        return;
+      }
+      setResults(orders);
+      orders.forEach((o) => saveOrder(o.id, ph));
+    } catch {
+      setLoading(false);
+      setError("Couldn't fetch your orders. Please try again.");
+    }
   }
 
   return (
@@ -251,7 +271,7 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
         Track Your Order
       </h1>
       <p className="text-sm text-gray-500 mb-6">
-        Enter your Order ID and the phone number you used at checkout.
+        Enter the phone number you used at checkout to see all your orders — or add an Order ID to look up just one.
       </p>
 
       <div className="rounded-2xl border border-gray-100 bg-white p-4 md:p-5 shadow-sm mb-6">
@@ -261,7 +281,7 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
             <input
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
-              placeholder="Order ID"
+              placeholder="Order ID (optional)"
               className="w-full rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#730ca8]/30"
             />
           </div>
@@ -287,13 +307,18 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
         {error && <p className="mt-2 text-xs font-semibold text-rose-600">{error}</p>}
       </div>
 
-      {result && (
-        <div className="mb-8">
-          <OrderStatusCard order={result} />
+      {results && results.length > 0 && (
+        <div className="space-y-4 mb-8">
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+            {results.length > 1 ? `${results.length} orders found` : "Order found"}
+          </p>
+          {results.map((o) => (
+            <OrderStatusCard key={o.id} order={o} />
+          ))}
         </div>
       )}
 
-      {!result && savedResults.length > 0 && (
+      {!results && savedResults.length > 0 && (
         <div className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
             Your recent orders on this device
@@ -304,9 +329,9 @@ export default function TrackOrderPage({ onBack, prefillOrderId, prefillPhone })
         </div>
       )}
 
-      {!result && !savedLoading && savedResults.length === 0 && (
+      {!results && !savedLoading && savedResults.length === 0 && (
         <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300 text-gray-400 text-sm">
-          No orders tracked on this device yet. Place an order or enter your Order ID above.
+          No orders tracked on this device yet. Place an order or enter your phone number above.
         </div>
       )}
     </main>
