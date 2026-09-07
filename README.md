@@ -14,7 +14,7 @@ content model.
 - **Price List** — full price list, auto-generated from your products
 - **About** — shop story (edit `src/lib/data.js`)
 - **Safety Tips** — standard fireworks safety guidelines (edit `src/lib/data.js`)
-- **Admin** — long-press the logo (top-left) for 0.6s to open
+
 
 ## 1. Setup
 
