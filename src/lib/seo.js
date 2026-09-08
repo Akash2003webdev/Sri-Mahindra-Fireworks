@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 const SITE_URL = "https://www.mahendrafancycrackers.com";
 
-export function useSEO({ title, description, path, noindex }) {
+export function useSEO({ title, description, path, noindex, jsonLd }) {
   useEffect(() => {
     if (title) document.title = title;
 
@@ -45,5 +45,20 @@ export function useSEO({ title, description, path, noindex }) {
     if (twTitle && title) twTitle.setAttribute("content", title);
     const twDesc = document.querySelector('meta[name="twitter:description"]');
     if (twDesc && description) twDesc.setAttribute("content", description);
-  }, [title, description, path, noindex]);
+
+    // Page-specific structured data (Product, BreadcrumbList, FAQPage, etc.)
+    // Injected as its own <script> tagged with data-seo-jsonld so it can be
+    // swapped/removed per page without touching the site-wide LocalBusiness
+    // block that lives in index.html.
+    const existing = document.querySelector('script[data-seo-jsonld]');
+    if (existing) existing.remove();
+    if (jsonLd) {
+      const script = document.createElement("script");
+      script.type = "application/ld+json";
+      script.setAttribute("data-seo-jsonld", "true");
+      script.textContent = JSON.stringify(jsonLd);
+      document.head.appendChild(script);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, description, path, noindex, JSON.stringify(jsonLd)]);
 }

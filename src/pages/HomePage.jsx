@@ -73,9 +73,39 @@ export default function HomePage({
   onToast,
 }) {
   useSEO({
-    title: `${restaurantInfo.name} | Sivakasi Crackers Shop | Wholesale Crackers`,
-    description: `Shop ${restaurantInfo.name} for premium pyrotech in Sivakasi. As a leading Sivakasi Crackers Shop, we offer a wide range of crackers and fireworks.`,
+    title: `${restaurantInfo.name} | Crackers Shop in Sattur & Elayirampannai | Sivakasi Fireworks`,
+    description: `Buy Diwali crackers online from ${restaurantInfo.name} — sparklers, flower pots, sound crackers, aerial shots & gift boxes, Sivakasi quality. Home delivery & pickup in Sattur, Elayirampannai, Virudhunagar. Wholesale & retail.`,
     path: "/",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "Where can I buy crackers online near Sattur?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: `${restaurantInfo.name} sells sparklers, flower pots, sound crackers, aerial shots and gift boxes online with home delivery and store pickup in Sattur, Elayirampannai and nearby areas.`,
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Does Mahendra Fancy Crackers deliver to my area?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes, we deliver across Sattur, Elayirampannai, Virudhunagar, Kovilpatti and nearby towns, and also offer in-store pickup at our Elayirampannai outlet.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Do you sell wholesale crackers for Diwali?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes, we supply both retail and wholesale quantities of Sivakasi-made fireworks and crackers, including Bairava Brand products.",
+          },
+        },
+      ],
+    },
   });
 
   const [categories, setCategories] = useState([]);

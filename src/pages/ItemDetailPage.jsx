@@ -20,6 +20,7 @@ import { useSEO } from "../lib/seo";
 import logo from "../assets/product-placeholder.png";
 
 export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
+  const firstVariantPrice = item?.variants?.[0]?.price;
   useSEO({
     title: item
       ? `${item.name} | Mahendra Fancy Crackers`
@@ -28,6 +29,25 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
       ? `${item.name}${item.description ? " - " + item.description : ""} — order online from Mahendra Fancy Crackers, Sattur. Home delivery & store pickup available.`
       : "Order this item online from Mahendra Fancy Crackers, Sattur.",
     path: item ? `/item/${item.id}` : undefined,
+    jsonLd: item
+      ? {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: item.name,
+          description: item.description || `${item.name} — fireworks/crackers from Mahendra Fancy Crackers`,
+          image: item.images?.length ? item.images : undefined,
+          brand: { "@type": "Brand", name: "Bairava Brand" },
+          sku: item.id,
+          offers: {
+            "@type": "Offer",
+            url: `https://www.mahendrafancycrackers.com/item/${item.id}`,
+            priceCurrency: "INR",
+            price: firstVariantPrice ?? undefined,
+            availability: "https://schema.org/InStock",
+            seller: { "@type": "Store", name: "Mahendra Fancy Crackers" },
+          },
+        }
+      : undefined,
   });
 
   const { items: cartItems, addItem, updateQuantity } = useCart();
