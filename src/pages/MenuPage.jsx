@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Minus, ShoppingBag, LayoutGrid, List, ArrowRight } from "lucide-react";
+import { Search, Plus, Minus, ShoppingBag, LayoutGrid, List, ArrowRight, Store } from "lucide-react";
 import { getCategories, getMenuItems } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import { useCart } from "../context/CartContext";
+import { useStoreSettings } from "../context/StoreSettingsContext";
 import { getCategoryDisplayName } from "../lib/data";
 import logo from "../assets/product-placeholder.png";
 import placeholder from "../assets/placeholder.png";
@@ -13,6 +14,7 @@ const MENU_VIEW_KEY = "slc_menu_view_v1";
 export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
   const navigate = useNavigate();
   const { items: cartItems, addItem, updateQuantity, subtotal = 0 } = useCart();
+  const { onlineOrderEnabled } = useStoreSettings();
 
   useSEO({
     title: "Products | Mahendra Fancy Crackers - Full Cracker Catalogue",
@@ -166,7 +168,15 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
 
   return (
     <div className="w-full min-h-screen bg-[#fffaf3] pb-24">
-      
+
+      {!onlineOrderEnabled && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="flex items-center justify-center gap-2 bg-purple-50 text-[#730ca8] border border-purple-100 text-xs sm:text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-sm">
+            <Store size={16} /> Online orders are paused right now — please visit our store directly.
+          </div>
+        </div>
+      )}
+
       {/* Sticky Filter Bar - Directly below navbar with seamless attachment */}
       <div className="sticky top-[75px] md:top-[85px] z-30 bg-white border-b border-stone-200 shadow-[0_4px_20px_rgba(0,0,0,0.06)] py-3 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
@@ -351,6 +361,10 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                     const hasDiscount = actualRate > price;
                     const qty = getCartQty(item);
                     const itemTotal = price * qty;
+                    const isOutOfStock =
+                      item.status === "sold_out" || item.stock_status === "out_of_stock";
+                    const isLowStock = !isOutOfStock && item.stock_status === "low_stock";
+                    const canBuy = onlineOrderEnabled && !isOutOfStock;
 
                     return (
                       <div
@@ -377,6 +391,16 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                               <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
                                 {defaultVariant?.name || "1 Pack"}
                               </span>
+                              {isOutOfStock && (
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">
+                                  Sold Out
+                                </span>
+                              )}
+                              {isLowStock && (
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                                  Few Left
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -409,41 +433,52 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                             )}
                           </div>
 
-                          {/* Quantity Stepper */}
+                          {/* Quantity Stepper — only when online orders are
+                              on and the item isn't sold out; otherwise a
+                              short status note takes its place. */}
                           <div className="w-36 flex justify-center">
-                            <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl overflow-hidden h-9 shadow-inner">
-                              <button
-                                onClick={() =>
-                                  handleQuantityChange(item, qty - 1)
-                                }
-                                className="w-9 h-full flex items-center justify-center text-stone-600 hover:bg-[#730ca8] hover:text-white transition-colors"
-                              >
-                                <Minus size={13} />
-                              </button>
-                              <input
-                                type="text"
-                                value={qty}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value) || 0;
-                                  handleQuantityChange(item, val);
-                                }}
-                                className="w-10 h-full text-center text-xs font-bold text-stone-800 bg-transparent outline-none"
-                              />
-                              <button
-                                onClick={() =>
-                                  handleQuantityChange(item, qty + 1)
-                                }
-                                className="w-9 h-full flex items-center justify-center text-stone-600 hover:bg-[#730ca8] hover:text-white transition-colors"
-                              >
-                                <Plus size={13} />
-                              </button>
-                            </div>
+                            {canBuy ? (
+                              <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl overflow-hidden h-9 shadow-inner">
+                                <button
+                                  onClick={() =>
+                                    handleQuantityChange(item, qty - 1)
+                                  }
+                                  className="w-9 h-full flex items-center justify-center text-stone-600 hover:bg-[#730ca8] hover:text-white transition-colors"
+                                >
+                                  <Minus size={13} />
+                                </button>
+                                <input
+                                  type="text"
+                                  value={qty}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    handleQuantityChange(item, val);
+                                  }}
+                                  className="w-10 h-full text-center text-xs font-bold text-stone-800 bg-transparent outline-none"
+                                />
+                                <button
+                                  onClick={() =>
+                                    handleQuantityChange(item, qty + 1)
+                                  }
+                                  className="w-9 h-full flex items-center justify-center text-stone-600 hover:bg-[#730ca8] hover:text-white transition-colors"
+                                >
+                                  <Plus size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-stone-400 border border-stone-200 rounded-full px-3 py-1.5 whitespace-nowrap">
+                                <Store size={11} />
+                                {isOutOfStock ? "Sold Out" : "Visit Store"}
+                              </span>
+                            )}
                           </div>
 
                           {/* Item Total */}
-                          <div className="w-28 text-right text-xs md:text-sm font-black text-[#730ca8]">
-                            ₹{itemTotal.toLocaleString()}
-                          </div>
+                          {canBuy && (
+                            <div className="w-28 text-right text-xs md:text-sm font-black text-[#730ca8]">
+                              ₹{itemTotal.toLocaleString()}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

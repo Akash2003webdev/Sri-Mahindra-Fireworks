@@ -9,6 +9,7 @@ import {
   useParams,
 } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
+import { StoreSettingsProvider } from "./context/StoreSettingsContext";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
 import FloatingWhatsApp from "./components/FloatingWhatsApp";
@@ -315,14 +316,16 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <CartProvider>
-        {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
-        <AppShell />
-        <LegalNoticeModal
-          open={showLegalNotice}
-          onClose={() => setShowLegalNotice(false)}
-        />
-      </CartProvider>
+      <StoreSettingsProvider>
+        <CartProvider>
+          {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+          <AppShell />
+          <LegalNoticeModal
+            open={showLegalNotice}
+            onClose={() => setShowLegalNotice(false)}
+          />
+        </CartProvider>
+      </StoreSettingsProvider>
     </BrowserRouter>
   );
 }

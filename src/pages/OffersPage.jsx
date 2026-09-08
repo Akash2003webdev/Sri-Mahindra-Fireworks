@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Tag, Sparkles, ShoppingBag, ArrowRight, X, Plus } from "lucide-react";
+import { Tag, Sparkles, ShoppingBag, ArrowRight, X, Plus, Store } from "lucide-react";
 import { getOffers } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import { useCart } from "../context/CartContext";
+import { useStoreSettings } from "../context/StoreSettingsContext";
 
 // Cover image if the admin set one; otherwise a collage built from the
 // combo's own product photos, so every offer always looks visual.
@@ -45,7 +46,7 @@ function OfferVisual({ offer }) {
 
 // Full-detail popup for what's inside a combo — opens when the avatar
 // stack is tapped.
-function ComboDetailsModal({ offer, onClose, onOrder }) {
+function ComboDetailsModal({ offer, onClose, onOrder, onlineOrderEnabled }) {
   const savings = offer.originalTotal - offer.rate;
 
   return (
@@ -132,20 +133,26 @@ function ComboDetailsModal({ offer, onClose, onOrder }) {
               )}
             </div>
           </div>
-          <button
-            onClick={() => onOrder(offer)}
-            disabled={!offer.products?.length}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold text-sm tracking-wide shadow-md shadow-primary-500/10 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-          >
-            <ShoppingBag size={16} /> Order This Gift Box <ArrowRight size={15} />
-          </button>
+          {onlineOrderEnabled ? (
+            <button
+              onClick={() => onOrder(offer)}
+              disabled={!offer.products?.length}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold text-sm tracking-wide shadow-md shadow-primary-500/10 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ShoppingBag size={16} /> Order This Gift Box <ArrowRight size={15} />
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-50 text-primary-700 font-bold text-sm border border-purple-100">
+              <Store size={16} /> Visit Store to Order
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function OfferCard({ offer, onOrder }) {
+function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
   const savings = offer.originalTotal - offer.rate;
   const [showDetails, setShowDetails] = useState(false);
 
@@ -198,7 +205,7 @@ function OfferCard({ offer, onOrder }) {
                 )}
               </div>
               <span className="flex items-center gap-1 text-xs text-primary-600 font-semibold group-hover:text-primary-700">
-                <Plus size={12} strokeWidth={3} /> View gift box
+                <Plus size={12} strokeWidth={3} /> View combo pack
               </span>
             </button>
           )}
@@ -221,13 +228,19 @@ function OfferCard({ offer, onOrder }) {
             </div>
           </div>
 
-          <button
-            onClick={() => onOrder(offer)}
-            disabled={!offer.products?.length}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold text-sm tracking-wide shadow-md shadow-primary-500/10 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-          >
-            <ShoppingBag size={16} /> Order This Gift Box <ArrowRight size={15} />
-          </button>
+          {onlineOrderEnabled ? (
+            <button
+              onClick={() => onOrder(offer)}
+              disabled={!offer.products?.length}
+              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold text-sm tracking-wide shadow-md shadow-primary-500/10 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ShoppingBag size={16} /> Order This Combo Pack <ArrowRight size={15} />
+            </button>
+          ) : (
+            <div className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-50 text-primary-700 font-bold text-sm border border-purple-100">
+              <Store size={16} /> Visit Store to Order
+            </div>
+          )}
         </div>
       </div>
 
@@ -236,6 +249,7 @@ function OfferCard({ offer, onOrder }) {
           offer={offer}
           onClose={() => setShowDetails(false)}
           onOrder={onOrder}
+          onlineOrderEnabled={onlineOrderEnabled}
         />
       )}
     </>
@@ -244,14 +258,15 @@ function OfferCard({ offer, onOrder }) {
 
 export default function OffersPage({ onToast }) {
   useSEO({
-    title: "Gift Boxes | Mahendra Fancy Crackers - Combo Deals & Discounts",
+    title: "Combo Packs | Mahendra Fancy Crackers - Combo Deals & Discounts",
     description:
-      "Check out ready-made crackers gift boxes at Mahendra Fancy Crackers, Sattur — bundled and priced specially.",
+      "Check out ready-made crackers Combo packs at Mahendra Fancy Crackers, Sattur — bundled and priced specially.",
     path: "/offers",
   });
 
   const [offers, setOffers] = useState(null);
   const { addItem } = useCart();
+  const { onlineOrderEnabled } = useStoreSettings();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -286,10 +301,10 @@ export default function OffersPage({ onToast }) {
           <Sparkles size={14} /> Deals Just For You
         </span>
         <h1 className="font-display font-black text-2xl md:text-4xl text-gray-900 tracking-tight">
-          Gift Boxes
+          Combo Pack
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Ready-made crackers gift boxes bundled and priced specially — order the whole box in one tap.
+          Ready-made crackers combo pack bundled and priced specially — order the whole box in one tap.
         </p>
       </div>
 
@@ -301,13 +316,13 @@ export default function OffersPage({ onToast }) {
 
       {offers?.length === 0 && (
         <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
-          No gift boxes available right now — check back soon!
+          No combo pack available right now — check back soon!
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
         {offers?.map((offer) => (
-          <OfferCard key={offer.id} offer={offer} onOrder={handleOrder} />
+          <OfferCard key={offer.id} offer={offer} onOrder={handleOrder} onlineOrderEnabled={onlineOrderEnabled} />
         ))}
       </div>
     </div>

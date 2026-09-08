@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, Minus, Heart, PlayCircle } from "lucide-react";
+import { Plus, Minus, Heart, PlayCircle, Store } from "lucide-react";
 import Stars from "./Stars";
 import { useCart } from "../context/CartContext";
+import { useStoreSettings } from "../context/StoreSettingsContext";
 import logo from "../assets/product-placeholder.png";
 
 const BADGE_STYLES = {
@@ -12,11 +13,13 @@ const BADGE_STYLES = {
 
 export default function MenuItemCard({ item, onClick, onToast, badge }) {
   const { items: cartItems, addItem, updateQuantity } = useCart();
+  const { onlineOrderEnabled } = useStoreSettings();
   const [liked, setLiked] = useState(false);
 
   // Logic Integration
-  const isSoldOut = item.status === "sold_out";
-  const isBlocked = isSoldOut;
+  const isSoldOut = item.status === "sold_out" || item.stock_status === "out_of_stock";
+  const isLowStock = !isSoldOut && item.stock_status === "low_stock";
+  const isBlocked = isSoldOut || !onlineOrderEnabled;
   const defaultVariant = item.variants?.[0];
 
   // Total quantity of this item already in the cart, across any variant —
@@ -81,6 +84,13 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
               Sold Out
             </span>
           </div>
+        )}
+
+        {/* Low Stock tag, bottom-left */}
+        {isLowStock && (
+          <span className="absolute bottom-2 left-2 text-[9px] font-black uppercase tracking-wide px-2 py-1 rounded-md shadow-sm bg-amber-500 text-white">
+            Only Few Left
+          </span>
         )}
 
         {/* Promo tag, top-left */}
@@ -157,8 +167,13 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
             </div>
           )}
 
-          {/* Quick Add Button / Quantity Stepper */}
-          {cartQty > 0 ? (
+          {/* Quick Add Button / Quantity Stepper — hidden entirely while
+              online ordering is paused; view + rate still show above. */}
+          {!onlineOrderEnabled ? (
+            <span className="flex shrink-0 items-center gap-1 text-[9px] font-bold text-gray-400 border border-gray-200 rounded-full px-2.5 py-1.5 whitespace-nowrap">
+              <Store size={11} /> Visit Store
+            </span>
+          ) : cartQty > 0 ? (
             <div
               onClick={(e) => e.stopPropagation()}
               className="flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-1 py-1 shadow-sm"

@@ -9,10 +9,12 @@ import {
   Send,
   User,
   MessageSquare,
+  Store,
 } from "lucide-react";
 import Stars from "../components/Stars";
 import ReviewCard from "../components/ReviewCard";
 import { useCart } from "../context/CartContext";
+import { useStoreSettings } from "../context/StoreSettingsContext";
 import { getItemReviews, submitReview } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import logo from "../assets/product-placeholder.png";
@@ -29,6 +31,7 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
   });
 
   const { items: cartItems, addItem, updateQuantity } = useCart();
+  const { onlineOrderEnabled } = useStoreSettings();
   const [variant, setVariant] = useState(item?.variants?.[0] || null);
   const [qty, setQty] = useState(1);
   const [reviews, setReviews] = useState([]);
@@ -54,8 +57,9 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
 
   if (!item) return null;
 
-  const isSoldOut = item.status === "sold_out";
-  const isBlocked = isSoldOut;
+  const isSoldOut = item.status === "sold_out" || item.stock_status === "out_of_stock";
+  const isLowStock = !isSoldOut && item.stock_status === "low_stock";
+  const isBlocked = isSoldOut || !onlineOrderEnabled;
   const price = variant?.price ?? 0;
   const actualRate = Number(variant?.actual_rate ?? 0);
   const discountPercent = Number(variant?.discount_percent ?? 0);
@@ -89,6 +93,7 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
   }
 
   function handleQtyChange(nextQty) {
+    if (isBlocked) return;
     const clamped = Math.max(1, nextQty);
     setQty(clamped);
 
@@ -226,6 +231,18 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
             </div>
           )}
 
+          {isLowStock && (
+            <div className="bg-amber-50 text-amber-600 border border-amber-100 text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-sm">
+              Hurry! Only a Few Left
+            </div>
+          )}
+
+          {!onlineOrderEnabled && (
+            <div className="flex items-center justify-center gap-2 bg-purple-50 text-[#730ca8] border border-purple-100 text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-sm">
+              <Store size={16} /> Online orders are paused right now — please visit our store directly.
+            </div>
+          )}
+
           {item.variants?.length > 1 && (
             <div className="space-y-3">
               <label className="text-xs font-bold text-gray-700 tracking-wider uppercase px-1">
@@ -252,59 +269,70 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
             </div>
           )}
 
-          {/* Price & Quantity Workspace */}
+          {/* Price & Quantity Workspace — quantity stepper only shows while
+              online ordering is on; the rate itself always stays visible. */}
           <div className="flex items-center justify-between bg-white border border-gray-100/80 rounded-3xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
             <div>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Subtotal</span>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
+                {onlineOrderEnabled ? "Subtotal" : "Rate"}
+              </span>
               <div className="flex items-baseline gap-2">
-                <span className="font-display font-black text-2xl text-gray-900">₹{price * qty}</span>
+                <span className="font-display font-black text-2xl text-gray-900">
+                  ₹{onlineOrderEnabled ? price * qty : price}
+                </span>
                 {hasDiscount && (
-                  <span className="text-sm text-gray-400 line-through">₹{actualRate * qty}</span>
+                  <span className="text-sm text-gray-400 line-through">
+                    ₹{onlineOrderEnabled ? actualRate * qty : actualRate}
+                  </span>
                 )}
               </div>
               {hasDiscount && discountPercent > 0 && (
                 <span className="text-xs font-bold text-emerald-600">{discountPercent}% off</span>
               )}
             </div>
-            
-            <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-full p-1.5">
-              <button
-                onClick={() => handleQtyChange(qty - 1)}
-                className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center transition-transform active:scale-90"
-              >
-                <Minus size={13} className="text-gray-700" />
-              </button>
-              <span className="font-bold text-gray-900 w-5 text-center text-sm">{qty}</span>
-              <button
-                onClick={() => handleQtyChange(qty + 1)}
-                className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center transition-transform active:scale-90"
-              >
-                <Plus size={13} className="text-gray-700" />
-              </button>
-            </div>
+
+            {onlineOrderEnabled && (
+              <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-full p-1.5">
+                <button
+                  onClick={() => handleQtyChange(qty - 1)}
+                  className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center transition-transform active:scale-90"
+                >
+                  <Minus size={13} className="text-gray-700" />
+                </button>
+                <span className="font-bold text-gray-900 w-5 text-center text-sm">{qty}</span>
+                <button
+                  onClick={() => handleQtyChange(qty + 1)}
+                  className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center transition-transform active:scale-90"
+                >
+                  <Plus size={13} className="text-gray-700" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Desktop Checkouts Action Layer */}
-          <div className="hidden md:flex gap-4">
-            <button
-              onClick={handleAddToCart}
-              disabled={isBlocked}
-              className="flex-1 py-4 rounded-2xl border-2 border-[#730ca8] text-[#730ca8] font-bold text-sm hover:bg-purple-50 disabled:opacity-40 disabled:pointer-events-none transition-all active:scale-[0.99]"
-            >
-              Add to Cart
-            </button>
-            <button
-              onClick={() => {
-                handleAddToCart();
-                onGoToCart?.();
-              }}
-              disabled={isBlocked}
-              className="group flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] hover:from-[#620992] hover:to-[#730ca8] text-white font-bold text-sm tracking-wide shadow-lg disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
-            >
-              Order Now
-              <ShoppingBag size={16} />
-            </button>
-          </div>
+          {onlineOrderEnabled && (
+            <div className="hidden md:flex gap-4">
+              <button
+                onClick={handleAddToCart}
+                disabled={isBlocked}
+                className="flex-1 py-4 rounded-2xl border-2 border-[#730ca8] text-[#730ca8] font-bold text-sm hover:bg-purple-50 disabled:opacity-40 disabled:pointer-events-none transition-all active:scale-[0.99]"
+              >
+                Add to Cart
+              </button>
+              <button
+                onClick={() => {
+                  handleAddToCart();
+                  onGoToCart?.();
+                }}
+                disabled={isBlocked}
+                className="group flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] hover:from-[#620992] hover:to-[#730ca8] text-white font-bold text-sm tracking-wide shadow-lg disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
+              >
+                Order Now
+                <ShoppingBag size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -401,27 +429,35 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
       </div>
 
       {/* 4. Mobile Fixed Bottom Action Overlay */}
-      <div className="fixed bottom-16 md:hidden left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100/80 p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
-        <div className="max-w-xl mx-auto flex gap-3">
-          <button
-            onClick={handleAddToCart}
-            disabled={isBlocked}
-            className="flex-1 py-3.5 rounded-xl border-2 border-[#730ca8] text-[#730ca8] font-bold text-sm active:scale-95 transition-transform disabled:opacity-40 bg-white"
-          >
-            Add to Cart
-          </button>
-          <button
-            onClick={() => {
-              handleAddToCart();
-              onGoToCart?.();
-            }}
-            disabled={isBlocked}
-            className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-40"
-          >
-            Order Now
-          </button>
+      {onlineOrderEnabled ? (
+        <div className="fixed bottom-16 md:hidden left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100/80 p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
+          <div className="max-w-xl mx-auto flex gap-3">
+            <button
+              onClick={handleAddToCart}
+              disabled={isBlocked}
+              className="flex-1 py-3.5 rounded-xl border-2 border-[#730ca8] text-[#730ca8] font-bold text-sm active:scale-95 transition-transform disabled:opacity-40 bg-white"
+            >
+              Add to Cart
+            </button>
+            <button
+              onClick={() => {
+                handleAddToCart();
+                onGoToCart?.();
+              }}
+              disabled={isBlocked}
+              className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] text-white font-bold text-sm active:scale-95 transition-transform shadow-md disabled:opacity-40"
+            >
+              Order Now
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="fixed bottom-16 md:hidden left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100/80 p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
+          <div className="max-w-xl mx-auto flex items-center justify-center gap-2 text-[#730ca8] font-bold text-sm">
+            <Store size={16} /> Visit our store to buy this
+          </div>
+        </div>
+      )}
     </div>
   );
 }

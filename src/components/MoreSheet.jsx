@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export const MORE_LINKS = [
-  { key: "offers", label: "Gift Box", icon: Gift },
+  { key: "offers", label: "Combo pack", icon: Gift },
   { key: "price-list", label: "Price List", icon: Receipt },
   { key: "track-order", label: "Track Order", icon: PackageSearch },
   { key: "about", label: "About Us", icon: Info },

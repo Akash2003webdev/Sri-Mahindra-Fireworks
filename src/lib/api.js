@@ -623,6 +623,33 @@ export function uploadCouponImage(file) {
   return uploadImage("coupon-images", file);
 }
 
+// ----------------------------------------------------------------------------
+// Site settings — small key/value table for global toggles, e.g. the
+// "online ordering paused" switch admin flips from HQ Dashboard.
+// ----------------------------------------------------------------------------
+export async function getSiteSettings() {
+  const { data, error } = await supabase.from("site_settings").select("*");
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach((row) => {
+    map[row.key] = row.value;
+  });
+  return map;
+}
+
+export async function updateSiteSetting(key, value) {
+  const { data, error } = await supabase
+    .from("site_settings")
+    .upsert(
+      { key, value: String(value), updated_at: new Date().toISOString() },
+      { onConflict: "key" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // Looks up a coupon by its code and checks it against the cart total —
 // active status, not expired, and the cart meets that coupon's own minimum
 // order value. Returns { valid, coupon, message } so the Cart page can show

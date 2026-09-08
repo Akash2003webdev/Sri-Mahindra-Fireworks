@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useStoreSettings } from "../context/StoreSettingsContext";
 import ConfirmOrderModal from "../components/ConfirmOrderModal";
 import { orderTypes, minOrderAmount } from "../lib/data";
 import { buildOrderMessage, sendWhatsAppMessage } from "../lib/whatsapp";
@@ -34,6 +35,7 @@ export default function CartPage({ onToast, onOrderSent }) {
   });
 
   const { items, updateQuantity, removeItem, clearCart, total } = useCart();
+  const { onlineOrderEnabled } = useStoreSettings();
   const [orderType, setOrderType] = useState("Store Pickup");
   const [address, setAddress] = useState("");
   const [name, setName] = useState("");
@@ -135,6 +137,7 @@ export default function CartPage({ onToast, onOrderSent }) {
   }
 
   const canOrder =
+    onlineOrderEnabled &&
     items.length > 0 &&
     !belowMinOrder &&
     name.trim() &&
@@ -196,6 +199,12 @@ export default function CartPage({ onToast, onOrderSent }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-14 pb-40 md:pb-20 min-h-screen bg-gray-50/40">
+      {!onlineOrderEnabled && (
+        <div className="mb-6 flex items-center justify-center gap-2 bg-purple-50 text-[#730ca8] border border-purple-100 text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-sm">
+          <AlertCircle size={16} /> Online orders are paused right now — please visit our store directly to complete your purchase.
+        </div>
+      )}
+
       {/* Title Header with Clear Cart Option */}
       <div className="mb-6 md:mb-10 flex items-end justify-between">
         <div>

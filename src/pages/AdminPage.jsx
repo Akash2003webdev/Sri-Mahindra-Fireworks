@@ -34,6 +34,10 @@ import {
   Video,
   BadgePercent,
   Copy,
+  Power,
+  PackageCheck,
+  PackageX,
+  PackageMinus,
 } from "lucide-react";
 import {
   getCategories,
@@ -79,6 +83,7 @@ import {
   uploadCouponImage,
 } from "../lib/api";
 import { ORDER_STATUSES, getStatusMeta } from "../lib/orderStatus";
+import { useStoreSettings } from "../context/StoreSettingsContext";
 
 // TODO: change these before going live — see README.md
 const ADMIN_USER = "mahendrafancycrackers";
@@ -89,7 +94,7 @@ const TABS = [
   { key: "items", label: "Menu Items", icon: UtensilsCrossed },
   { key: "brands", label: "Brands", icon: Award },
   { key: "banners", label: "Banners", icon: GalleryHorizontal },
-  { key: "offers", label: "Offers", icon: Tag },
+  { key: "offers", label: "Combo Pack", icon: Tag },
   { key: "coupons", label: "Coupons", icon: BadgePercent },
   { key: "reviews", label: "Reviews", icon: MessageSquareText },
   { key: "orders", label: "Orders", icon: ClipboardList },
@@ -1147,6 +1152,15 @@ function ItemsTab() {
     }
   }
 
+  async function handleStockStatusChange(id, stockStatus) {
+    try {
+      await updateMenuItem(id, { stock_status: stockStatus });
+      refresh();
+    } catch (err) {
+      alert("Couldn't update stock status: " + err.message);
+    }
+  }
+
   const ready = items && categories;
 
   const filteredItems = items?.filter((i) =>
@@ -1247,45 +1261,73 @@ function ItemsTab() {
             ) : (
               <div
                 key={i.id}
-                className="bg-white border border-gray-200 rounded-2xl p-3.5 flex items-center gap-4 shadow-sm hover:border-gray-300 transition-all"
+                className="bg-white border border-gray-200 rounded-2xl p-3.5 shadow-sm hover:border-gray-300 transition-all"
               >
-                <img
-                  src={i.images?.[0]}
-                  alt={i.name}
-                  className="w-14 h-14 rounded-xl object-cover border border-gray-100"
-                />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-bold text-gray-800 block truncate">
-                    {i.name}
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span
-                      className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                        isAvailable
-                          ? "bg-green-50 text-green-600 border-green-200"
-                          : "bg-rose-50 text-rose-600 border-rose-200"
-                      }`}
+                <div className="flex items-center gap-4">
+                  <img
+                    src={i.images?.[0]}
+                    alt={i.name}
+                    className="w-14 h-14 rounded-xl object-cover border border-gray-100"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-bold text-gray-800 block truncate">
+                      {i.name}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                          isAvailable
+                            ? "bg-green-50 text-green-600 border-green-200"
+                            : "bg-rose-50 text-rose-600 border-rose-200"
+                        }`}
+                      >
+                        {isAvailable ? "Available" : "Sold Out"}
+                      </span>
+                      <span className="text-xs font-black text-gold-600">
+                        ₹{i.variants?.[0]?.price ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setEditingId(i.id)}
+                      className="text-gray-400 hover:text-gold-500 p-1.5 rounded-xl hover:bg-gold-50 transition-colors cursor-pointer"
                     >
-                      {isAvailable ? "Available" : "Sold Out"}
-                    </span>
-                    <span className="text-xs font-black text-gold-600">
-                      ₹{i.variants?.[0]?.price ?? "—"}
-                    </span>
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(i.id)}
+                      className="text-gray-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setEditingId(i.id)}
-                    className="text-gray-400 hover:text-gold-500 p-1.5 rounded-xl hover:bg-gold-50 transition-colors cursor-pointer"
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(i.id)}
-                    className="text-gray-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+
+                {/* Stock status — available / low stock / out of stock —
+                    drives whether customers can add this item to cart. */}
+                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">
+                    Stock
+                  </span>
+                  {[
+                    { key: "available", label: "Available", icon: PackageCheck, active: "bg-green-50 text-green-600 border-green-300" },
+                    { key: "low_stock", label: "Low Stock", icon: PackageMinus, active: "bg-amber-50 text-amber-600 border-amber-300" },
+                    { key: "out_of_stock", label: "Out of Stock", icon: PackageX, active: "bg-rose-50 text-rose-600 border-rose-300" },
+                  ].map(({ key, label, icon: Icon, active }) => {
+                    const isCurrent = (i.stock_status || "available") === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => handleStockStatusChange(i.id, key)}
+                        className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors cursor-pointer ${
+                          isCurrent ? active : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        <Icon size={12} /> {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -1824,11 +1866,11 @@ function OfferForm({ initial, onSave, onCancel }) {
 
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600">
-          Offer / Gift Box Name
+          Offer / Combo Pack Name
         </label>
         <input
           type="text"
-          placeholder="e.g., Diwali Special Gift Box"
+          placeholder="e.g., Diwali Special Combo Pack"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none transition-all focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10"
@@ -1851,7 +1893,7 @@ function OfferForm({ initial, onSave, onCancel }) {
 
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600 flex items-center gap-2">
-          <Package size={13} /> Group Products Into This Gift Box
+          <Package size={13} /> Group Products Into This Combo Pack
         </label>
         {allItems === null ? (
           <LoadingRow />
@@ -1867,7 +1909,7 @@ function OfferForm({ initial, onSave, onCancel }) {
 
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600 flex items-center gap-1">
-          <IndianRupee size={12} /> Gift Box Rate (₹) — what the customer pays
+          <IndianRupee size={12} /> Combo Pack Rate (₹) — what the customer pays
         </label>
         <input
           type="number"
@@ -2632,9 +2674,21 @@ function EnquiriesTab() {
 export default function AdminPage({ onClose }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [tab, setTab] = useState("categories");
+  const { onlineOrderEnabled, setOnlineOrder } = useStoreSettings();
+  const [togglingOrder, setTogglingOrder] = useState(false);
 
   if (!loggedIn) {
     return <LoginGate onSuccess={() => setLoggedIn(true)} onClose={onClose} />;
+  }
+
+  async function handleToggleOnlineOrder() {
+    setTogglingOrder(true);
+    try {
+      await setOnlineOrder(!onlineOrderEnabled);
+    } catch (err) {
+      alert("Couldn't update: " + err.message);
+    }
+    setTogglingOrder(false);
   }
 
   return (
@@ -2646,12 +2700,31 @@ export default function AdminPage({ onClose }) {
             HQ Dashboard <Sparkles size={14} className="text-gold-400" />
           </h1>
         </div>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-700 transition-all active:scale-90 z-10 cursor-pointer"
-        >
-          <X size={18} />
-        </button>
+
+        <div className="flex items-center gap-2 z-10">
+          {/* Online Order On/Off — hides Add to Cart across the site and
+              shows a "visit store" message instead, while this is off. */}
+          <button
+            onClick={handleToggleOnlineOrder}
+            disabled={togglingOrder}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 disabled:opacity-50 cursor-pointer ${
+              onlineOrderEnabled
+                ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
+                : "bg-rose-500/10 border-rose-500/40 text-rose-400"
+            }`}
+            title={onlineOrderEnabled ? "Online Orders: ON — tap to turn off" : "Online Orders: OFF — tap to turn on"}
+          >
+            <Power size={14} />
+            {togglingOrder ? "..." : onlineOrderEnabled ? "Online Order: ON" : "Online Order: OFF"}
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-700 transition-all active:scale-90 cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-4xl mx-auto w-full md:px-6 pb-28">

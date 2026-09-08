@@ -589,8 +589,7 @@ export default function HomePage({
         {/* Combo Packs (Responsive: 2 Columns Grid on Mobile, Horizontal Scroll on Desktop) */}
         <section className="relative">
           <SectionTitle
-            subtitle="Family Packs"
-            title="COMBO PACK"
+            title="Gift Boxes"
             description="Ready-made Gift Box combos from our Gift Box category, pre-packed for our valuable customers"
           />
 
