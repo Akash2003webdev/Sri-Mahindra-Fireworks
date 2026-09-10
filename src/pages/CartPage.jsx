@@ -36,7 +36,7 @@ export default function CartPage({ onToast, onOrderSent }) {
 
   const { items, updateQuantity, removeItem, clearCart, total } = useCart();
   const { onlineOrderEnabled } = useStoreSettings();
-  const [orderType, setOrderType] = useState("Store Pickup");
+  const [orderType, setOrderType] = useState("Home Delivery");
   const [address, setAddress] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -61,7 +61,8 @@ export default function CartPage({ onToast, onOrderSent }) {
   // so we can show "MRP ₹X → Our Price ₹Y" the same way everywhere the
   // order gets reviewed (cart list, summary, confirm modal).
   const mrpTotal = items.reduce(
-    (sum, i) => sum + (Number(i.mrp) > i.price ? Number(i.mrp) : i.price) * i.quantity,
+    (sum, i) =>
+      sum + (Number(i.mrp) > i.price ? Number(i.mrp) : i.price) * i.quantity,
     0,
   );
   const itemDiscountTotal = Math.max(mrpTotal - total, 0);
@@ -201,7 +202,8 @@ export default function CartPage({ onToast, onOrderSent }) {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-14 pb-40 md:pb-20 min-h-screen bg-gray-50/40">
       {!onlineOrderEnabled && (
         <div className="mb-6 flex items-center justify-center gap-2 bg-purple-50 text-[#730ca8] border border-purple-100 text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-sm">
-          <AlertCircle size={16} /> Online orders are paused right now — please visit our store directly to complete your purchase.
+          <AlertCircle size={16} /> Online orders are paused right now — please
+          visit our store directly to complete your purchase.
         </div>
       )}
 
@@ -323,7 +325,10 @@ export default function CartPage({ onToast, onOrderSent }) {
           {/* Minimum Order Notice */}
           {belowMinOrder && (
             <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200/80 rounded-2xl px-4 py-3">
-              <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <AlertCircle
+                size={16}
+                className="text-amber-600 shrink-0 mt-0.5"
+              />
               <p className="text-xs font-semibold text-amber-800 leading-relaxed">
                 Minimum order value is ₹{minOrderAmount}. Add ₹{amountToMin}{" "}
                 more worth of items to place your order.
@@ -462,7 +467,10 @@ export default function CartPage({ onToast, onOrderSent }) {
               {appliedCoupon ? (
                 <div className="flex items-center justify-between gap-2 bg-emerald-50/70 border border-emerald-100 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <CheckCircle2
+                      size={16}
+                      className="text-emerald-600 shrink-0"
+                    />
                     <span className="text-xs font-bold text-emerald-700 truncate">
                       {appliedCoupon.code} applied — you saved ₹{discountAmount}
                     </span>
@@ -493,7 +501,9 @@ export default function CartPage({ onToast, onOrderSent }) {
                     disabled={checkingCoupon || !couponInput.trim()}
                     className="px-4 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold shrink-0 transition-colors disabled:opacity-40 flex items-center gap-1.5"
                   >
-                    {checkingCoupon && <Loader2 size={13} className="animate-spin" />}
+                    {checkingCoupon && (
+                      <Loader2 size={13} className="animate-spin" />
+                    )}
                     Apply
                   </button>
                 </div>
