@@ -29,7 +29,7 @@ export const orderTypes = ["Home Delivery", "Store Pickup"];
 // card, category page title) without touching the underlying data or its
 // links to products. Add more { from, to } mappings here any time.
 const CATEGORY_DISPLAY_NAME_MAP = {
-  "gift box": "Combo Packs",
+  "gift box": "gift box",
 };
 
 export function getCategoryDisplayName(name) {
