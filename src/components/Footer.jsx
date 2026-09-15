@@ -1,4 +1,11 @@
-import { Instagram, Facebook, Youtube, MapPin, Clock, ShieldCheck } from "lucide-react";
+import {
+  Instagram,
+  Facebook,
+  Youtube,
+  MapPin,
+  Clock,
+  ShieldCheck,
+} from "lucide-react";
 import logo from "../assets/logo.png";
 import { restaurantInfo } from "../lib/data";
 
@@ -20,8 +27,14 @@ export default function Footer({ onNavigate }) {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Logo / cert column */}
           <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-            <img src={logo} alt={restaurantInfo.name} className="mb-3 h-14 w-auto object-contain" />
-            <h4 className="font-display text-lg font-black">{restaurantInfo.name}</h4>
+            <img
+              src={logo}
+              alt={restaurantInfo.name}
+              className="mb-3 h-14 w-auto object-contain"
+            />
+            <h4 className="font-display text-lg font-black">
+              {restaurantInfo.name}
+            </h4>
             <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-gold-300">
               <ShieldCheck size={14} />
               Licensed &amp; Verified Fireworks Dealer
@@ -36,13 +49,19 @@ export default function Footer({ onNavigate }) {
             <p className="text-sm leading-relaxed text-white/70">
               For any questions, call or WhatsApp us at
               <br />
-              <a href={`tel:${restaurantInfo.phone}`} className="font-bold text-white hover:text-orange-400">
+              <a
+                href={`tel:${restaurantInfo.phone}`}
+                className="font-bold text-white hover:text-orange-400"
+              >
                 {restaurantInfo.phone}
               </a>
               {restaurantInfo.altPhone && (
                 <>
                   {", "}
-                  <a href={`tel:${restaurantInfo.altPhone}`} className="font-bold text-white hover:text-orange-400">
+                  <a
+                    href={`tel:${restaurantInfo.altPhone}`}
+                    className="font-bold text-white hover:text-orange-400"
+                  >
                     {restaurantInfo.altPhone}
                   </a>
                 </>
@@ -50,7 +69,10 @@ export default function Footer({ onNavigate }) {
               {restaurantInfo.email && (
                 <>
                   <br />
-                  <a href={`mailto:${restaurantInfo.email}`} className="font-bold text-white hover:text-orange-400">
+                  <a
+                    href={`mailto:${restaurantInfo.email}`}
+                    className="font-bold text-white hover:text-orange-400"
+                  >
                     {restaurantInfo.email}
                   </a>
                 </>
@@ -122,6 +144,10 @@ export default function Footer({ onNavigate }) {
 
         <div className="mt-12 border-t border-white/10 pt-6 text-center text-xs text-white/50">
           Copyright © {year} {restaurantInfo.name}. All rights reserved.
+          <br></br>
+          <br></br>
+          Disclaimer: AI-generated visuals are for advertising purposes only.
+          Actual product may vary.
         </div>
       </div>
     </footer>
