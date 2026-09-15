@@ -496,7 +496,7 @@ export default function HomePage({
           <section>
             <SectionTitle
               subtitle="Bundled & Ready"
-              title="Combo Gift Boxes"
+              title="Combo Boxes"
               description="Hand-picked crackers bundled together at one special combo rate — order the whole box in one tap."
             />
 
