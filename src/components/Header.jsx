@@ -19,7 +19,7 @@ import { restaurantInfo } from "../lib/data";
 const DESKTOP_NAV = [
   { key: "home", label: "Home", icon: Home },
   { key: "menu", label: "Products", icon: Sparkles, isButton: true },
-  { key: "offer", label: "Offers", icon: BadgePercent },
+  { key: "offers", label: "Combo pack", icon: Gift },
 ];
 
 const ALL_DRAWER_LINKS = [...DESKTOP_NAV, ...MORE_LINKS];

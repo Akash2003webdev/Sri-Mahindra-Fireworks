@@ -7,11 +7,13 @@ import {
   MessageCircleQuestion,
   MessageSquareText,
   PackageSearch,
+  BadgePercent,
   Gift,
 } from "lucide-react";
 
 export const MORE_LINKS = [
-  { key: "offers", label: "Combo pack", icon: Gift },
+    { key: "offer", label: "Offers", icon: BadgePercent },
+
   { key: "price-list", label: "Price List", icon: Receipt },
   { key: "track-order", label: "Track Order", icon: PackageSearch },
   { key: "about", label: "About Us", icon: Info },
