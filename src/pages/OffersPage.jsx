@@ -452,7 +452,7 @@ function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
               <span className="flex items-center gap-1 text-xs text-primary-600 font-semibold group-hover:text-primary-700">
                 <Plus size={12} strokeWidth={3} />
                 View combo pack
-                <span className="text-gray-400">({products.length})</span>
+                <span className="text-Black-400">({products.length})</span>
               </span>
             </button>
           )}
