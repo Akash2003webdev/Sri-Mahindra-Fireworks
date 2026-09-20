@@ -87,7 +87,9 @@ export default function PriceListPage({ onBack }) {
       y = doc.lastAutoTable.finalY + 8;
     });
 
-    doc.save(`${restaurantInfo.name.replace(/\s+/g, "-").toLowerCase()}-price-list.pdf`);
+    doc.save(
+      `${restaurantInfo.name.replace(/\s+/g, "-").toLowerCase()}-price-list.pdf`,
+    );
   }
 
   return (
@@ -112,11 +114,8 @@ export default function PriceListPage({ onBack }) {
         </div>
 
         {!loading && grouped.length > 0 && (
-          <button
-            onClick={downloadPdf}
-            className="shrink-0 flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary-500/10 transition-all active:scale-95"
-          >
-            <Download size={15} /> Download PDF
+          <button onClick={downloadPdf}>
+            
           </button>
         )}
       </div>
@@ -162,7 +161,10 @@ export default function PriceListPage({ onBack }) {
                         <span className="text-sm font-medium text-gray-800 pr-2">
                           {item.name}
                           {v.name ? (
-                            <span className="text-gray-400 font-normal"> — {v.name}</span>
+                            <span className="text-gray-400 font-normal">
+                              {" "}
+                              — {v.name}
+                            </span>
                           ) : null}
                         </span>
                         <div className="text-right shrink-0">
@@ -171,7 +173,9 @@ export default function PriceListPage({ onBack }) {
                           </span>
                           {hasDiscount && (
                             <span className="text-[11px] font-semibold text-gray-400 flex items-center justify-end gap-1.5">
-                              <span className="line-through">₹{actualRate}</span>
+                              <span className="line-through">
+                                ₹{actualRate}
+                              </span>
                               {discountPercent > 0 && (
                                 <span className="text-emerald-600 bg-emerald-50 px-1 rounded">
                                   {discountPercent}% off
