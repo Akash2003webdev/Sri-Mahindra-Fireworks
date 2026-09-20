@@ -20,9 +20,7 @@ import { useStoreSettings } from "../context/StoreSettingsContext";
    ========================================================= */
 
 function OfferVisual({ offer }) {
-  const products = Array.isArray(offer?.products)
-    ? offer.products
-    : [];
+  const products = Array.isArray(offer?.products) ? offer.products : [];
 
   // Admin selected combo cover image
   if (offer?.image) {
@@ -38,9 +36,7 @@ function OfferVisual({ offer }) {
   }
 
   // Product images for fallback collage
-  const photos = products
-    .map((p) => p?.image)
-    .filter(Boolean);
+  const photos = products.map((p) => p?.image).filter(Boolean);
 
   // No image
   if (photos.length === 0) {
@@ -86,16 +82,10 @@ function OfferVisual({ offer }) {
 
 function ProductImage({ product }) {
   const image =
-    product?.image ||
-    product?.image_url ||
-    product?.imageUrl ||
-    null;
+    product?.image || product?.image_url || product?.imageUrl || null;
 
   const name =
-    product?.name ||
-    product?.product_name ||
-    product?.title ||
-    "Product";
+    product?.name || product?.product_name || product?.title || "Product";
 
   if (image) {
     return (
@@ -119,21 +109,12 @@ function ProductImage({ product }) {
    COMBO DETAILS MODAL
    ========================================================= */
 
-function ComboDetailsModal({
-  offer,
-  onClose,
-  onOrder,
-  onlineOrderEnabled,
-}) {
-  const products = Array.isArray(offer?.products)
-    ? offer.products
-    : [];
+function ComboDetailsModal({ offer, onClose, onOrder, onlineOrderEnabled }) {
+  const products = Array.isArray(offer?.products) ? offer.products : [];
 
   const rate = Number(offer?.rate || 0);
 
-  const originalTotal = Number(
-    offer?.originalTotal || 0
-  );
+  const originalTotal = Number(offer?.originalTotal || 0);
 
   const savings = originalTotal - rate;
 
@@ -164,8 +145,7 @@ function ComboDetailsModal({
               alt={offer?.title || "Combo Pack"}
               className="w-full h-full object-cover"
             />
-          ) : products.length > 0 &&
-            products[0]?.image ? (
+          ) : products.length > 0 && products[0]?.image ? (
             <img
               src={products[0].image}
               alt={offer?.title || "Combo Pack"}
@@ -173,10 +153,7 @@ function ComboDetailsModal({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 flex items-center justify-center">
-              <Tag
-                size={42}
-                className="text-white/70"
-              />
+              <Tag size={42} className="text-white/70" />
             </div>
           )}
 
@@ -186,10 +163,7 @@ function ComboDetailsModal({
           {/* Product count */}
           {products.length > 0 && (
             <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full">
-              {products.length}{" "}
-              {products.length === 1
-                ? "Product"
-                : "Products"}
+              {products.length} {products.length === 1 ? "Product" : "Products"}
             </div>
           )}
 
@@ -234,10 +208,7 @@ function ComboDetailsModal({
 
                 <p className="text-sm font-bold text-gray-800 mt-0.5">
                   {products.length}{" "}
-                  {products.length === 1
-                    ? "product"
-                    : "products"}{" "}
-                  included
+                  {products.length === 1 ? "product" : "products"} included
                 </p>
               </div>
 
@@ -266,15 +237,10 @@ function ComboDetailsModal({
                     null;
 
                   const quantity = Number(
-                    product?.quantity ||
-                      product?.qty ||
-                      1
+                    product?.quantity || product?.qty || 1,
                   );
 
-                  const productPrice =
-                    product?.price ??
-                    product?.rate ??
-                    null;
+                  const productPrice = product?.price ?? product?.rate ?? null;
 
                   return (
                     <div
@@ -342,10 +308,7 @@ function ComboDetailsModal({
             ) : (
               /* No products */
               <div className="py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <ShoppingBag
-                  size={26}
-                  className="mx-auto text-gray-300 mb-2"
-                />
+                <ShoppingBag size={26} className="mx-auto text-gray-300 mb-2" />
 
                 <p className="text-sm text-gray-500 font-semibold">
                   No products found in this combo
@@ -368,18 +331,18 @@ function ComboDetailsModal({
                   ₹{rate}
                 </span>
 
-                {savings > 0 && (
+                {/* {savings > 0 && (
                   <span className="text-sm text-gray-400 line-through font-semibold">
                     ₹{originalTotal}
                   </span>
-                )}
+                )} */}
               </div>
-
+              {/* 
               {savings > 0 && (
                 <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide">
                   You save ₹{savings}
                 </span>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -392,15 +355,12 @@ function ComboDetailsModal({
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold text-sm tracking-wide shadow-md shadow-primary-500/10 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
             >
               <ShoppingBag size={16} />
-
-              Order This Gift Box
-
+              Order This Combo Box
               <ArrowRight size={15} />
             </button>
           ) : (
             <div className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-50 text-primary-700 font-bold text-sm border border-purple-100">
               <Store size={16} />
-
               Visit Store to Order
             </div>
           )}
@@ -414,23 +374,14 @@ function ComboDetailsModal({
    OFFER CARD
    ========================================================= */
 
-function OfferCard({
-  offer,
-  onOrder,
-  onlineOrderEnabled,
-}) {
-  const [showDetails, setShowDetails] =
-    useState(false);
+function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
+  const [showDetails, setShowDetails] = useState(false);
 
-  const products = Array.isArray(offer?.products)
-    ? offer.products
-    : [];
+  const products = Array.isArray(offer?.products) ? offer.products : [];
 
   const rate = Number(offer?.rate || 0);
 
-  const originalTotal = Number(
-    offer?.originalTotal || 0
-  );
+  const originalTotal = Number(offer?.originalTotal || 0);
 
   const savings = originalTotal - rate;
 
@@ -464,33 +415,27 @@ function OfferCard({
           {products.length > 0 && (
             <button
               type="button"
-              onClick={() =>
-                setShowDetails(true)
-              }
+              onClick={() => setShowDetails(true)}
               className="mt-3.5 flex items-center gap-2.5 text-left group cursor-pointer"
             >
               {/* Preview images */}
               <div className="flex -space-x-3 flex-shrink-0">
-                {products
-                  .slice(0, 4)
-                  .map((product, index) => (
-                    <div
-                      key={
-                        product?.id ||
-                        product?.productId ||
-                        product?.itemId ||
-                        `${index}`
-                      }
-                      className="w-9 h-9 rounded-full ring-2 ring-white overflow-hidden bg-primary-50 shadow-sm group-hover:ring-primary-100 transition-colors"
-                      style={{
-                        zIndex: 10 - index,
-                      }}
-                    >
-                      <ProductImage
-                        product={product}
-                      />
-                    </div>
-                  ))}
+                {products.slice(0, 4).map((product, index) => (
+                  <div
+                    key={
+                      product?.id ||
+                      product?.productId ||
+                      product?.itemId ||
+                      `${index}`
+                    }
+                    className="w-9 h-9 rounded-full ring-2 ring-white overflow-hidden bg-primary-50 shadow-sm group-hover:ring-primary-100 transition-colors"
+                    style={{
+                      zIndex: 10 - index,
+                    }}
+                  >
+                    <ProductImage product={product} />
+                  </div>
+                ))}
 
                 {/* More count */}
                 {products.length > 4 && (
@@ -505,16 +450,9 @@ function OfferCard({
 
               {/* View */}
               <span className="flex items-center gap-1 text-xs text-primary-600 font-semibold group-hover:text-primary-700">
-                <Plus
-                  size={12}
-                  strokeWidth={3}
-                />
-
+                <Plus size={12} strokeWidth={3} />
                 View combo pack
-
-                <span className="text-gray-400">
-                  ({products.length})
-                </span>
+                <span className="text-gray-400">({products.length})</span>
               </span>
             </button>
           )}
@@ -530,18 +468,18 @@ function OfferCard({
                   ₹{rate}
                 </span>
 
-                {savings > 0 && (
+                {/* {savings > 0 && (
                   <span className="text-sm text-gray-400 line-through font-semibold">
                     ₹{originalTotal}
                   </span>
-                )}
+                )} */}
               </div>
 
-              {savings > 0 && (
+              {/* {savings > 0 && (
                 <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide">
                   You save ₹{savings}
                 </span>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -552,22 +490,17 @@ function OfferCard({
           {onlineOrderEnabled ? (
             <button
               type="button"
-              onClick={() =>
-                onOrder(offer)
-              }
+              onClick={() => onOrder(offer)}
               disabled={!products.length}
               className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-bold text-sm tracking-wide shadow-md shadow-primary-500/10 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
             >
               <ShoppingBag size={16} />
-
               Order This Combo Pack
-
               <ArrowRight size={15} />
             </button>
           ) : (
             <div className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-50 text-primary-700 font-bold text-sm border border-purple-100">
               <Store size={16} />
-
               Visit Store to Order
             </div>
           )}
@@ -581,13 +514,9 @@ function OfferCard({
       {showDetails && (
         <ComboDetailsModal
           offer={offer}
-          onClose={() =>
-            setShowDetails(false)
-          }
+          onClose={() => setShowDetails(false)}
           onOrder={onOrder}
-          onlineOrderEnabled={
-            onlineOrderEnabled
-          }
+          onlineOrderEnabled={onlineOrderEnabled}
         />
       )}
     </>
@@ -598,16 +527,13 @@ function OfferCard({
    OFFERS PAGE
    ========================================================= */
 
-export default function OffersPage({
-  onToast,
-}) {
+export default function OffersPage({ onToast }) {
   /* =======================================================
      SEO
      ======================================================= */
 
   useSEO({
-    title:
-      "Combo Packs | Mahendra Fancy Crackers - Combo Deals & Discounts",
+    title: "Combo Packs | Mahendra Fancy Crackers - Combo Deals & Discounts",
 
     description:
       "Check out ready-made crackers Combo packs at Mahendra Fancy Crackers, Sattur — bundled and priced specially.",
@@ -619,14 +545,11 @@ export default function OffersPage({
      STATE
      ======================================================= */
 
-  const [offers, setOffers] =
-    useState(null);
+  const [offers, setOffers] = useState(null);
 
   const { addItem } = useCart();
 
-  const {
-    onlineOrderEnabled,
-  } = useStoreSettings();
+  const { onlineOrderEnabled } = useStoreSettings();
 
   const navigate = useNavigate();
 
@@ -663,11 +586,7 @@ export default function OffersPage({
      ======================================================= */
 
   function handleOrder(offer) {
-    const products = Array.isArray(
-      offer?.products
-    )
-      ? offer.products
-      : [];
+    const products = Array.isArray(offer?.products) ? offer.products : [];
 
     addItem({
       id: `offer-${offer.id}`,
@@ -680,10 +599,7 @@ export default function OffersPage({
 
       variantName: "Gift Box",
 
-      image:
-        offer.image ||
-        products?.[0]?.image ||
-        null,
+      image: offer.image || products?.[0]?.image || null,
 
       categoryName: null,
 
@@ -694,9 +610,7 @@ export default function OffersPage({
       comboItems: products,
     });
 
-    onToast?.(
-      `${offer.title} added to cart`
-    );
+    onToast?.(`${offer.title} added to cart`);
 
     navigate("/cart");
   }
@@ -714,7 +628,6 @@ export default function OffersPage({
       <div className="mb-8 md:mb-12">
         <span className="flex items-center gap-1.5 text-gold-500 text-xs font-bold tracking-[0.2em] uppercase mb-1">
           <Sparkles size={14} />
-
           Deals Just For You
         </span>
 
@@ -723,9 +636,8 @@ export default function OffersPage({
         </h1>
 
         <p className="text-sm text-gray-500 mt-1">
-          Ready-made crackers combo pack
-          bundled and priced specially —
-          order the whole box in one tap.
+          Ready-made crackers combo pack bundled and priced specially — order
+          the whole box in one tap.
         </p>
       </div>
 
@@ -737,9 +649,7 @@ export default function OffersPage({
         <div className="flex flex-col items-center justify-center py-16 gap-2">
           <div className="w-8 h-8 border-4 border-gold-200 border-t-gold-500 rounded-full animate-spin" />
 
-          <p className="text-sm text-gray-400">
-            Loading combo packs...
-          </p>
+          <p className="text-sm text-gray-400">Loading combo packs...</p>
         </div>
       )}
 
@@ -749,8 +659,7 @@ export default function OffersPage({
 
       {offers?.length === 0 && (
         <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
-          No combo pack available right now
-          — check back soon!
+          No combo pack available right now — check back soon!
         </div>
       )}
 
@@ -765,9 +674,7 @@ export default function OffersPage({
               key={offer.id}
               offer={offer}
               onOrder={handleOrder}
-              onlineOrderEnabled={
-                onlineOrderEnabled
-              }
+              onlineOrderEnabled={onlineOrderEnabled}
             />
           ))}
         </div>
