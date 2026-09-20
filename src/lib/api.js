@@ -54,7 +54,12 @@ export async function getMenuItems({ categoryId, search } = {}) {
     .select("*, variants:menu_item_variants(*), category:categories(name)");
   if (categoryId) query = query.eq("category_id", categoryId);
   if (search) query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
-  const { data, error } = await query.order("created_at", { ascending: true });
+  // Order by the admin-controlled sort_order first (so items show in the
+  // order set from the Menu Items tab), then created_at as a tiebreaker
+  // for items that share the same sort_order.
+  const { data, error } = await query
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
   if (error) throw error;
   return (data || []).map(normalizeItem);
 }
@@ -280,10 +285,15 @@ function normalizeOffer(row) {
     }));
   const originalTotal = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
   const { offer_items, ...offer } = row;
-  return { ...offer, products, originalTotal };
+  const isExpired = Boolean(offer.valid_until) && new Date(offer.valid_until) < new Date();
+  return { ...offer, products, originalTotal, isExpired };
 }
 
 export async function getOffers() {
+  // Customer-facing combo packs: active status. Expired ones are still
+  // returned (marked with isExpired) so the site can show them as
+  // "Expired" instead of just disappearing — the Offers/Combo Pack page
+  // decides what to do with that flag (grey out, block ordering, etc).
   const { data, error } = await supabase
     .from("offers")
     .select(OFFER_SELECT)
@@ -302,7 +312,7 @@ export async function getAllOffers() {
   return (data || []).map(normalizeOffer);
 }
 
-export async function createOffer({ title, description, image, rate, sortOrder, items }) {
+export async function createOffer({ title, description, image, rate, sortOrder, items, validUntil }) {
   const { data, error } = await supabase
     .from("offers")
     .insert({
@@ -311,6 +321,7 @@ export async function createOffer({ title, description, image, rate, sortOrder, 
       image: image || null,
       rate: rate ?? 0,
       sort_order: sortOrder ?? 0,
+      valid_until: validUntil || null,
     })
     .select()
     .single();
@@ -331,9 +342,18 @@ export async function createOffer({ title, description, image, rate, sortOrder, 
 }
 
 export async function updateOffer(id, fields, items) {
+  const payload = {};
+  if (fields.title !== undefined) payload.title = fields.title;
+  if (fields.description !== undefined) payload.description = fields.description;
+  if (fields.image !== undefined) payload.image = fields.image;
+  if (fields.rate !== undefined) payload.rate = fields.rate;
+  if (fields.sortOrder !== undefined) payload.sort_order = fields.sortOrder;
+  if (fields.validUntil !== undefined) payload.valid_until = fields.validUntil;
+  if (fields.status !== undefined) payload.status = fields.status;
+
   const { data, error } = await supabase
     .from("offers")
-    .update(fields)
+    .update(payload)
     .eq("id", id)
     .select()
     .single();
@@ -474,6 +494,14 @@ export function uploadBrandImage(file) {
 }
 
 export async function createMenuItem({ categoryId, name, images, videos }) {
+  // New items are placed at the end of their category's list by default —
+  // count how many items the category already has and use that as the
+  // new item's sort_order.
+  const { count } = await supabase
+    .from("menu_items")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", categoryId);
+
   const { data: item, error } = await supabase
     .from("menu_items")
     .insert({
@@ -481,6 +509,7 @@ export async function createMenuItem({ categoryId, name, images, videos }) {
       name,
       images: images || [],
       videos: videos || [],
+      sort_order: count || 0,
     })
     .select()
     .single();

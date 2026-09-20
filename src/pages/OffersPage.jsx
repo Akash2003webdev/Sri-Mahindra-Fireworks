@@ -167,6 +167,13 @@ function ComboDetailsModal({ offer, onClose, onOrder, onlineOrderEnabled }) {
             </div>
           )}
 
+          {/* Expired badge */}
+          {offer?.isExpired && (
+            <div className="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md z-10">
+              Expired
+            </div>
+          )}
+
           {/* Close */}
           <button
             type="button"
@@ -347,7 +354,12 @@ function ComboDetailsModal({ offer, onClose, onOrder, onlineOrderEnabled }) {
           </div>
 
           {/* Order */}
-          {onlineOrderEnabled ? (
+          {offer?.isExpired ? (
+            <div className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-50 text-rose-600 font-bold text-sm border border-rose-100">
+              <Tag size={16} />
+              This Combo Has Expired
+            </div>
+          ) : onlineOrderEnabled ? (
             <button
               type="button"
               onClick={() => onOrder(offer)}
@@ -393,7 +405,16 @@ function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
 
       <div className="bg-white rounded-3xl border border-gray-100/80 shadow-[0_15px_40px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] transition-all duration-300 flex flex-col">
         {/* Visual */}
-        <OfferVisual offer={offer} />
+        <div className="relative">
+          <OfferVisual offer={offer} />
+          {offer?.isExpired && (
+            <div className="absolute inset-0 bg-white/55 flex items-center justify-center">
+              <span className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
+                Expired
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="p-5 flex flex-col flex-1">
           {/* Title */}
@@ -487,7 +508,12 @@ function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
               ORDER BUTTON
              ================================================= */}
 
-          {onlineOrderEnabled ? (
+          {offer?.isExpired ? (
+            <div className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-50 text-rose-600 font-bold text-sm border border-rose-100">
+              <Tag size={16} />
+              This Combo Has Expired
+            </div>
+          ) : onlineOrderEnabled ? (
             <button
               type="button"
               onClick={() => onOrder(offer)}
@@ -586,6 +612,7 @@ export default function OffersPage({ onToast }) {
      ======================================================= */
 
   function handleOrder(offer) {
+    if (offer?.isExpired) return;
     const products = Array.isArray(offer?.products) ? offer.products : [];
 
     addItem({

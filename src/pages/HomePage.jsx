@@ -521,6 +521,13 @@ export default function HomePage({
                           <Sparkles size={28} className="text-white/70" />
                         </div>
                       )}
+                      {gift.isExpired && (
+                        <div className="absolute inset-0 bg-white/55 flex items-center justify-center">
+                          <span className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
+                            Expired
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-5 flex flex-col flex-1">
                       <h4 className="font-bold text-gray-900 text-base mb-1 leading-snug">
@@ -536,13 +543,19 @@ export default function HomePage({
                           </span>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate("offers")}
-                        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] text-white font-bold text-xs tracking-wide shadow-md transition-all active:scale-95"
-                      >
-                        <ShoppingBag size={14} /> View Gift Box
-                      </button>
+                      {gift.isExpired ? (
+                        <div className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 text-rose-600 font-bold text-xs border border-rose-100">
+                          Combo Expired
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate("offers")}
+                          className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] text-white font-bold text-xs tracking-wide shadow-md transition-all active:scale-95"
+                        >
+                          <ShoppingBag size={14} /> View Gift Box
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

@@ -38,6 +38,8 @@ import {
   PackageCheck,
   PackageX,
   PackageMinus,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import {
   getCategories,
@@ -1161,11 +1163,77 @@ function ItemsTab() {
     }
   }
 
+  // Swap this item's sort_order with the item directly before/after it
+  // in the same category, so the up/down arrows reorder within category.
+  async function moveItem(categoryItems, index, direction) {
+    const otherIndex = direction === "up" ? index - 1 : index + 1;
+    if (otherIndex < 0 || otherIndex >= categoryItems.length) return;
+
+    const current = categoryItems[index];
+    const other = categoryItems[otherIndex];
+    const currentOrder = current.sort_order ?? index;
+    const otherOrder = other.sort_order ?? otherIndex;
+
+    try {
+      await Promise.all([
+        updateMenuItem(current.id, { sort_order: otherOrder }),
+        updateMenuItem(other.id, { sort_order: currentOrder }),
+      ]);
+      refresh();
+    } catch (err) {
+      alert("Couldn't reorder: " + err.message);
+    }
+  }
+
+  // Admin types a position number directly (1 = first in that category).
+  // Moves the item to that spot and renumbers every item in the category
+  // so sort_order stays a clean 0..n-1 sequence.
+  async function setItemPosition(categoryItems, currentIndex, typedPosition) {
+    const total = categoryItems.length;
+    let newIndex = Math.round(Number(typedPosition)) - 1;
+    if (Number.isNaN(newIndex)) return;
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex > total - 1) newIndex = total - 1;
+    if (newIndex === currentIndex) return;
+
+    const reordered = categoryItems.slice();
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+
+    try {
+      await Promise.all(
+        reordered.map((item, idx) =>
+          item.sort_order === idx
+            ? Promise.resolve()
+            : updateMenuItem(item.id, { sort_order: idx }),
+        ),
+      );
+      refresh();
+    } catch (err) {
+      alert("Couldn't reorder: " + err.message);
+    }
+  }
+
   const ready = items && categories;
 
   const filteredItems = items?.filter((i) =>
     i.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  // Group items by category, in the categories' own display order, so
+  // items can be reordered relative to their category siblings. Only
+  // meaningful (and only shown) when there's no active search filter.
+  const isSearching = searchQuery.trim() !== "";
+  const groupedByCategory = !isSearching && ready
+    ? categories
+        .map((cat) => ({
+          category: cat,
+          categoryItems: (filteredItems || []).filter(
+            (i) => i.category_id === cat.id,
+          ),
+        }))
+        .filter((g) => g.categoryItems.length > 0)
+    : null;
 
   return (
     <div className="animate-fade-in">
@@ -1214,134 +1282,225 @@ function ItemsTab() {
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {ready &&
-          filteredItems.map((i) => {
-            const isAvailable = i.status === "available";
-            return editingId === i.id ? (
-              <div className="col-span-1 sm:col-span-2" key={i.id}>
-                <MenuItemForm
-                  initial={i}
-                  categories={categories}
-                  onSave={async ({ variants, ...fields }) => {
-                    await updateMenuItem(i.id, {
-                      name: fields.name,
-                      category_id: fields.categoryId,
-                      images: fields.images,
-                      videos: fields.videos,
-                    });
+      {(() => {
+        // Renders a single item card. `move` (optional) adds the
+        // up/down reorder arrows for grouped (non-search) view.
+        function renderItem(i, move) {
+          const isAvailable = i.status === "available";
+          return editingId === i.id ? (
+            <div className="col-span-1 sm:col-span-2" key={i.id}>
+              <MenuItemForm
+                initial={i}
+                categories={categories}
+                onSave={async ({ variants, ...fields }) => {
+                  await updateMenuItem(i.id, {
+                    name: fields.name,
+                    category_id: fields.categoryId,
+                    images: fields.images,
+                    videos: fields.videos,
+                  });
 
-                    const existingVariantIds = (i.variants || []).map(
-                      (v) => v.id,
-                    );
-                    const updatedVariantIds = variants
-                      .filter((v) => v.id)
-                      .map((v) => v.id);
+                  const existingVariantIds = (i.variants || []).map(
+                    (v) => v.id,
+                  );
+                  const updatedVariantIds = variants
+                    .filter((v) => v.id)
+                    .map((v) => v.id);
 
-                    for (const oldId of existingVariantIds) {
-                      if (!updatedVariantIds.includes(oldId)) {
-                        await deleteVariant(oldId);
-                      }
+                  for (const oldId of existingVariantIds) {
+                    if (!updatedVariantIds.includes(oldId)) {
+                      await deleteVariant(oldId);
                     }
+                  }
 
-                    for (const v of variants) {
-                      if (v.id) {
-                        await updateVariant(v.id, v);
-                      } else {
-                        await createVariant(i.id, v);
-                      }
+                  for (const v of variants) {
+                    if (v.id) {
+                      await updateVariant(v.id, v);
+                    } else {
+                      await createVariant(i.id, v);
                     }
+                  }
 
-                    setEditingId(null);
-                    refresh();
-                  }}
-                  onCancel={() => setEditingId(null)}
+                  setEditingId(null);
+                  refresh();
+                }}
+                onCancel={() => setEditingId(null)}
+              />
+            </div>
+          ) : (
+            <div
+              key={i.id}
+              className="bg-white border border-gray-200 rounded-2xl p-3.5 shadow-sm hover:border-gray-300 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                {move && (
+                  <div className="flex flex-col items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={move.onUp}
+                      disabled={!move.canUp}
+                      title="Move up"
+                      className="text-gray-400 hover:text-gold-500 disabled:opacity-25 disabled:cursor-not-allowed p-0.5 rounded-md hover:bg-gold-50 transition-colors cursor-pointer"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <input
+                      type="number"
+                      key={`${i.id}-${move.position}`}
+                      defaultValue={move.position}
+                      min={1}
+                      max={move.total}
+                      title="Position in this category"
+                      onBlur={(e) => move.onSetPosition(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.target.blur();
+                        }
+                      }}
+                      className="w-9 h-6 text-center text-[11px] font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={move.onDown}
+                      disabled={!move.canDown}
+                      title="Move down"
+                      className="text-gray-400 hover:text-gold-500 disabled:opacity-25 disabled:cursor-not-allowed p-0.5 rounded-md hover:bg-gold-50 transition-colors cursor-pointer"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                  </div>
+                )}
+                <img
+                  src={i.images?.[0]}
+                  alt={i.name}
+                  className="w-14 h-14 rounded-xl object-cover border border-gray-100"
                 />
-              </div>
-            ) : (
-              <div
-                key={i.id}
-                className="bg-white border border-gray-200 rounded-2xl p-3.5 shadow-sm hover:border-gray-300 transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={i.images?.[0]}
-                    alt={i.name}
-                    className="w-14 h-14 rounded-xl object-cover border border-gray-100"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-bold text-gray-800 block truncate">
-                      {i.name}
-                    </span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                          isAvailable
-                            ? "bg-green-50 text-green-600 border-green-200"
-                            : "bg-rose-50 text-rose-600 border-rose-200"
-                        }`}
-                      >
-                        {isAvailable ? "Available" : "Sold Out"}
-                      </span>
-                      <span className="text-xs font-black text-gold-600">
-                        ₹{i.variants?.[0]?.price ?? "—"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setEditingId(i.id)}
-                      className="text-gray-400 hover:text-gold-500 p-1.5 rounded-xl hover:bg-gold-50 transition-colors cursor-pointer"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(i.id)}
-                      className="text-gray-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Stock status — available / low stock / out of stock —
-                    drives whether customers can add this item to cart. */}
-                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">
-                    Stock
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-bold text-gray-800 block truncate">
+                    {i.name}
                   </span>
-                  {[
-                    { key: "available", label: "Available", icon: PackageCheck, active: "bg-green-50 text-green-600 border-green-300" },
-                    { key: "low_stock", label: "Low Stock", icon: PackageMinus, active: "bg-amber-50 text-amber-600 border-amber-300" },
-                    { key: "out_of_stock", label: "Out of Stock", icon: PackageX, active: "bg-rose-50 text-rose-600 border-rose-300" },
-                  ].map(({ key, label, icon: Icon, active }) => {
-                    const isCurrent = (i.stock_status || "available") === key;
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => handleStockStatusChange(i.id, key)}
-                        className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors cursor-pointer ${
-                          isCurrent ? active : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
-                        }`}
-                      >
-                        <Icon size={12} /> {label}
-                      </button>
-                    );
-                  })}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                        isAvailable
+                          ? "bg-green-50 text-green-600 border-green-200"
+                          : "bg-rose-50 text-rose-600 border-rose-200"
+                      }`}
+                    >
+                      {isAvailable ? "Available" : "Sold Out"}
+                    </span>
+                    <span className="text-xs font-black text-gold-600">
+                      ₹{i.variants?.[0]?.price ?? "—"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setEditingId(i.id)}
+                    className="text-gray-400 hover:text-gold-500 p-1.5 rounded-xl hover:bg-gold-50 transition-colors cursor-pointer"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(i.id)}
+                    className="text-gray-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
-            );
-          })}
 
-        {ready && filteredItems.length === 0 && !adding && (
-          <div className="col-span-1 sm:col-span-2 py-10 flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
-            <Search size={24} className="text-gray-300 mb-2" />
-            <p className="text-sm font-semibold text-gray-500">
-              No items match "{searchQuery}"
-            </p>
+              {/* Stock status — available / low stock / out of stock —
+                  drives whether customers can add this item to cart. */}
+              <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">
+                  Stock
+                </span>
+                {[
+                  { key: "available", label: "Available", icon: PackageCheck, active: "bg-green-50 text-green-600 border-green-300" },
+                  { key: "low_stock", label: "Low Stock", icon: PackageMinus, active: "bg-amber-50 text-amber-600 border-amber-300" },
+                  { key: "out_of_stock", label: "Out of Stock", icon: PackageX, active: "bg-rose-50 text-rose-600 border-rose-300" },
+                ].map(({ key, label, icon: Icon, active }) => {
+                  const isCurrent = (i.stock_status || "available") === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleStockStatusChange(i.id, key)}
+                      className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors cursor-pointer ${
+                        isCurrent ? active : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      <Icon size={12} /> {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        if (groupedByCategory) {
+          // Grouped-by-category view — shows category headers and lets
+          // the admin reorder items within each category with the arrows.
+          return (
+            <div className="space-y-6">
+              {groupedByCategory.map(({ category, categoryItems }) => (
+                <div key={category.id}>
+                  <div className="flex items-center gap-2 mb-2.5 px-1">
+                    <Layers size={13} className="text-gold-500" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-500">
+                      {category.name}
+                    </h3>
+                    <span className="text-[10px] font-bold text-gray-300">
+                      {categoryItems.length} items
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {categoryItems.map((i, idx) =>
+                      renderItem(i, {
+                        canUp: idx > 0,
+                        canDown: idx < categoryItems.length - 1,
+                        onUp: () => moveItem(categoryItems, idx, "up"),
+                        onDown: () => moveItem(categoryItems, idx, "down"),
+                        position: idx + 1,
+                        total: categoryItems.length,
+                        onSetPosition: (val) =>
+                          setItemPosition(categoryItems, idx, val),
+                      }),
+                    )}
+                  </div>
+                </div>
+              ))}
+              {groupedByCategory.length === 0 && !adding && (
+                <div className="py-10 flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
+                  <Search size={24} className="text-gray-300 mb-2" />
+                  <p className="text-sm font-semibold text-gray-500">
+                    No menu items yet
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Flat search-results view — no reorder arrows, since filtered
+        // adjacency doesn't reflect true category order.
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {ready && filteredItems.map((i) => renderItem(i, null))}
+
+            {ready && filteredItems.length === 0 && !adding && (
+              <div className="col-span-1 sm:col-span-2 py-10 flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
+                <Search size={24} className="text-gray-300 mb-2" />
+                <p className="text-sm font-semibold text-gray-500">
+                  No items match "{searchQuery}"
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1771,6 +1930,9 @@ function OfferForm({ initial, onSave, onCancel }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [rate, setRate] = useState(initial?.rate ?? "");
+  const [validUntil, setValidUntil] = useState(
+    initial?.valid_until ? initial.valid_until.slice(0, 10) : ""
+  );
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(initial?.image || "");
   const [saving, setSaving] = useState(false);
@@ -1843,6 +2005,7 @@ function OfferForm({ initial, onSave, onCancel }) {
         description: description.trim(),
         image: imageUrl,
         rate: Number(rate),
+        validUntil: validUntil ? new Date(validUntil).toISOString() : null,
         items,
       });
     } catch (err) {
@@ -1930,6 +2093,21 @@ function OfferForm({ initial, onSave, onCancel }) {
             )}
           </p>
         )}
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-xs font-bold text-gray-600 flex items-center gap-1">
+          <Calendar size={12} /> Expire Date (optional — leave blank for no expiry)
+        </label>
+        <input
+          type="date"
+          value={validUntil}
+          onChange={(e) => setValidUntil(e.target.value)}
+          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none transition-all focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10"
+        />
+        <p className="text-[11px] text-gray-400 font-semibold pt-0.5">
+          After this date, the combo pack auto-hides from the site even if marked Active.
+        </p>
       </div>
 
       {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
@@ -2062,16 +2240,34 @@ function OffersTab() {
                     · {o.products?.length ?? 0} products
                   </span>
                 </span>
-                <button
-                  onClick={() => toggleStatus(o)}
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border mt-1 inline-block ${
-                    o.status === "active"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-gray-100 text-gray-500 border-gray-200"
-                  }`}
-                >
-                  {o.status === "active" ? "Active" : "Inactive"}
-                </button>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <button
+                    onClick={() => toggleStatus(o)}
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border inline-block ${
+                      o.status === "active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-gray-100 text-gray-500 border-gray-200"
+                    }`}
+                  >
+                    {o.status === "active" ? "Active" : "Inactive"}
+                  </button>
+                  {o.valid_until && (
+                    <span
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+                        new Date(o.valid_until) < new Date()
+                          ? "bg-rose-50 text-rose-600 border-rose-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
+                    >
+                      <Calendar size={10} />
+                      {new Date(o.valid_until) < new Date() ? "Expired" : "Till"}{" "}
+                      {new Date(o.valid_until).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                      })}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex gap-1 shrink-0">
                 <button
