@@ -19,8 +19,8 @@ import {
 import { useCart } from "../context/CartContext";
 import { useStoreSettings } from "../context/StoreSettingsContext";
 import ConfirmOrderModal from "../components/ConfirmOrderModal";
+import OrderSuccessOverlay from "../components/OrderSuccessOverlay";
 import { orderTypes, minOrderAmount } from "../lib/data";
-import { buildOrderMessage, sendWhatsAppMessage } from "../lib/whatsapp";
 import { submitOrder, validateCoupon } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import logo from "../assets/product-placeholder.png";
@@ -41,6 +41,9 @@ export default function CartPage({ onToast, onOrderSent }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(null);
   const [mapLocation, setMapLocation] = useState("");
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
@@ -146,16 +149,8 @@ export default function CartPage({ onToast, onOrderSent }) {
     (orderType !== "Home Delivery" || address.trim());
 
   async function handleSend() {
-    const message = buildOrderMessage({
-      cartItems: items,
-      orderType,
-      address,
-      mapLocation,
-      name,
-      phone,
-      couponCode: appliedCoupon?.code,
-      discountAmount,
-    });
+    if (placingOrder) return;
+    setPlacingOrder(true);
     let savedOrder = null;
     try {
       savedOrder = await submitOrder({
@@ -171,16 +166,28 @@ export default function CartPage({ onToast, onOrderSent }) {
       });
     } catch (err) {
       console.error("Failed to save order to backend:", err);
+      setPlacingOrder(false);
+      setShowConfirm(false);
+      onToast?.("Couldn't place order right now — please try again.", "error");
+      return;
     }
-    sendWhatsAppMessage(message);
     clearCart();
     setShowConfirm(false);
-    onToast?.("Order sent via WhatsApp!");
-    onOrderSent?.(savedOrder);
+    setPendingOrder(savedOrder);
+    setShowSuccess(true);
+    setPlacingOrder(false);
   }
 
-  // Modern Empty Cart Screen
-  if (items.length === 0) {
+  function handleSuccessDone() {
+    setShowSuccess(false);
+    onOrderSent?.(pendingOrder);
+  }
+
+  // Modern Empty Cart Screen — skipped while the success overlay is up
+  // (clearCart() runs right before showSuccess, which would otherwise make
+  // this branch fire and hide the "Order Placed" tick behind an empty-cart
+  // screen for a split second).
+  if (items.length === 0 && !showSuccess) {
     return (
       <div className="max-w-md mx-auto px-6 pt-24 pb-32 text-center flex flex-col items-center justify-center min-h-[60vh]">
         <div className="w-20 h-20 rounded-[2rem] bg-gray-50 flex items-center justify-center border border-gray-100/80 mb-6 shadow-inner relative">
@@ -195,6 +202,12 @@ export default function CartPage({ onToast, onOrderSent }) {
           for your celebration!
         </p>
       </div>
+    );
+  }
+
+  if (items.length === 0 && showSuccess) {
+    return (
+      <OrderSuccessOverlay open={showSuccess} onDone={handleSuccessDone} />
     );
   }
 
@@ -571,7 +584,7 @@ export default function CartPage({ onToast, onOrderSent }) {
               disabled={!canOrder}
               className="group w-full py-4 rounded-2xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] hover:from-[#620992] hover:to-[#730ca8] text-white font-bold text-sm tracking-wide shadow-lg disabled:opacity-40 disabled:pointer-events-none transition-all duration-300 flex items-center justify-center gap-2"
             >
-              Order via WhatsApp
+              Confirm Order
               <ArrowRight
                 size={16}
                 className="transition-transform duration-300 group-hover:translate-x-1"
@@ -608,7 +621,7 @@ export default function CartPage({ onToast, onOrderSent }) {
             disabled={!canOrder}
             className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-[#730ca8] to-[#8b3a9e] text-white font-bold text-sm tracking-wide shadow-md disabled:opacity-40 transition-transform active:scale-95"
           >
-            Order via WhatsApp
+            Confirm Order
           </button>
         </div>
       </div>
@@ -619,6 +632,8 @@ export default function CartPage({ onToast, onOrderSent }) {
         title="Verify Your Order"
         onCancel={() => setShowConfirm(false)}
         onConfirm={handleSend}
+        confirmLabel={placingOrder ? "Placing Order..." : "Confirm"}
+        confirmDisabled={placingOrder}
       >
         <div className="space-y-4 text-sm">
           <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -712,11 +727,13 @@ export default function CartPage({ onToast, onOrderSent }) {
           <div className="flex items-center gap-2 bg-purple-50/50 text-purple-900 p-3 rounded-xl border border-purple-100/60 text-xs font-medium">
             <AlertCircle size={14} className="shrink-0" />
             <p className="truncate">
-              Sending to: <span className="font-bold">{name}</span> ({phone})
+              Order for: <span className="font-bold">{name}</span> ({phone})
             </p>
           </div>
         </div>
       </ConfirmOrderModal>
+
+      <OrderSuccessOverlay open={showSuccess} onDone={handleSuccessDone} />
     </div>
   );
 }

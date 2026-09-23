@@ -1,7 +1,15 @@
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-export default function ConfirmOrderModal({ open, title, children, onConfirm, onCancel }) {
+export default function ConfirmOrderModal({
+  open,
+  title,
+  children,
+  onConfirm,
+  onCancel,
+  confirmLabel = "Confirm",
+  confirmDisabled = false,
+}) {
   if (!open) return null;
 
   return createPortal(
@@ -24,9 +32,10 @@ export default function ConfirmOrderModal({ open, title, children, onConfirm, on
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-3 rounded-2xl bg-primary-500 font-semibold text-sm text-white"
+            disabled={confirmDisabled}
+            className="flex-1 py-3 rounded-2xl bg-primary-500 font-semibold text-sm text-white disabled:opacity-60"
           >
-            Confirm
+            {confirmLabel}
           </button>
         </div>
       </div>
