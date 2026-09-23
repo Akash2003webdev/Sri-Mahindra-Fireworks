@@ -1224,16 +1224,17 @@ function ItemsTab() {
   // items can be reordered relative to their category siblings. Only
   // meaningful (and only shown) when there's no active search filter.
   const isSearching = searchQuery.trim() !== "";
-  const groupedByCategory = !isSearching && ready
-    ? categories
-        .map((cat) => ({
-          category: cat,
-          categoryItems: (filteredItems || []).filter(
-            (i) => i.category_id === cat.id,
-          ),
-        }))
-        .filter((g) => g.categoryItems.length > 0)
-    : null;
+  const groupedByCategory =
+    !isSearching && ready
+      ? categories
+          .map((cat) => ({
+            category: cat,
+            categoryItems: (filteredItems || []).filter(
+              (i) => i.category_id === cat.id,
+            ),
+          }))
+          .filter((g) => g.categoryItems.length > 0)
+      : null;
 
   return (
     <div className="animate-fade-in">
@@ -1418,9 +1419,24 @@ function ItemsTab() {
                   Stock
                 </span>
                 {[
-                  { key: "available", label: "Available", icon: PackageCheck, active: "bg-green-50 text-green-600 border-green-300" },
-                  { key: "low_stock", label: "Low Stock", icon: PackageMinus, active: "bg-amber-50 text-amber-600 border-amber-300" },
-                  { key: "out_of_stock", label: "Out of Stock", icon: PackageX, active: "bg-rose-50 text-rose-600 border-rose-300" },
+                  {
+                    key: "available",
+                    label: "Available",
+                    icon: PackageCheck,
+                    active: "bg-green-50 text-green-600 border-green-300",
+                  },
+                  {
+                    key: "low_stock",
+                    label: "Low Stock",
+                    icon: PackageMinus,
+                    active: "bg-amber-50 text-amber-600 border-amber-300",
+                  },
+                  {
+                    key: "out_of_stock",
+                    label: "Out of Stock",
+                    icon: PackageX,
+                    active: "bg-rose-50 text-rose-600 border-rose-300",
+                  },
                 ].map(({ key, label, icon: Icon, active }) => {
                   const isCurrent = (i.stock_status || "available") === key;
                   return (
@@ -1428,7 +1444,9 @@ function ItemsTab() {
                       key={key}
                       onClick={() => handleStockStatusChange(i.id, key)}
                       className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors cursor-pointer ${
-                        isCurrent ? active : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
+                        isCurrent
+                          ? active
+                          : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
                       }`}
                     >
                       <Icon size={12} /> {label}
@@ -1742,8 +1760,8 @@ function BannersTab() {
       />
       <p className="text-xs text-gray-400 -mt-4 mb-5">
         Choose Main or Side for each banner. Main shows in the big hero slot,
-        Side shows in the smaller slot next to it — both appear on the home
-        page alongside the default images.
+        Side shows in the smaller slot next to it — both appear on the home page
+        alongside the default images.
       </p>
       {error && <ErrorRow message={error} />}
       {!error && !banners && <LoadingRow />}
@@ -1833,15 +1851,95 @@ function BannersTab() {
 
 function ComboProductPicker({
   allItems,
+  categories,
   selected,
   onToggle,
   onQuantityChange,
 }) {
   const [query, setQuery] = useState("");
+  const isSearching = query.trim() !== "";
 
   const filtered = (allItems || []).filter((i) =>
     i.name.toLowerCase().includes(query.toLowerCase()),
   );
+
+  // Group by category (in the categories' own display order, then each
+  // item's own position within it — same order as the Menu Items tab and
+  // the storefront) so products are easy to find and get selected in a
+  // sensible, predictable order. Search results stay a flat list since a
+  // search is usually narrow enough that headers just add noise.
+  const groupedByCategory =
+    !isSearching && categories
+      ? categories
+          .map((cat) => ({
+            category: cat,
+            categoryItems: filtered
+              .filter((i) => i.category_id === cat.id)
+              .slice()
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+          }))
+          .filter((g) => g.categoryItems.length > 0)
+      : null;
+
+  function renderRow(item) {
+    const variant = item.variants?.[0];
+    const sel = selected[item.id];
+    const isSelected = !!sel;
+    return (
+      <div
+        key={item.id}
+        className={`flex items-center gap-3 p-2.5 transition-colors ${isSelected ? "bg-primary-50/60" : ""}`}
+      >
+        <button
+          type="button"
+          onClick={() => onToggle(item, variant)}
+          className="shrink-0 text-primary-600 cursor-pointer"
+        >
+          {isSelected ? (
+            <CheckSquare size={19} />
+          ) : (
+            <Square size={19} className="text-gray-300" />
+          )}
+        </button>
+        <img
+          src={item.images?.[0] || "/product-placeholder.png"}
+          alt=""
+          className="w-9 h-9 rounded-lg object-cover border border-gray-100 shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-bold text-gray-800 block truncate">
+            {item.name}
+          </span>
+          <span className="text-[11px] text-gray-400 font-semibold">
+            ₹{variant?.price ?? "—"}
+          </span>
+        </div>
+        {isSelected && (
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-1 py-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                onQuantityChange(item.id, Math.max(1, sel.quantity - 1))
+              }
+              className="w-5 h-5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 cursor-pointer"
+            >
+              <Minus size={11} />
+            </button>
+            <span className="text-[11px] font-bold w-4 text-center">
+              {sel.quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => onQuantityChange(item.id, sel.quantity + 1)}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 cursor-pointer"
+            >
+              <Plus size={11} />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -1862,65 +1960,16 @@ function ComboProductPicker({
             No products found.
           </p>
         )}
-        {filtered.map((item) => {
-          const variant = item.variants?.[0];
-          const sel = selected[item.id];
-          const isSelected = !!sel;
-          return (
-            <div
-              key={item.id}
-              className={`flex items-center gap-3 p-2.5 transition-colors ${isSelected ? "bg-primary-50/60" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => onToggle(item, variant)}
-                className="shrink-0 text-primary-600 cursor-pointer"
-              >
-                {isSelected ? (
-                  <CheckSquare size={19} />
-                ) : (
-                  <Square size={19} className="text-gray-300" />
-                )}
-              </button>
-              <img
-                src={item.images?.[0] || "/product-placeholder.png"}
-                alt=""
-                className="w-9 h-9 rounded-lg object-cover border border-gray-100 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-bold text-gray-800 block truncate">
-                  {item.name}
-                </span>
-                <span className="text-[11px] text-gray-400 font-semibold">
-                  ₹{variant?.price ?? "—"}
-                </span>
-              </div>
-              {isSelected && (
-                <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-1 py-0.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onQuantityChange(item.id, Math.max(1, sel.quantity - 1))
-                    }
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <Minus size={11} />
-                  </button>
-                  <span className="text-[11px] font-bold w-4 text-center">
-                    {sel.quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onQuantityChange(item.id, sel.quantity + 1)}
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <Plus size={11} />
-                  </button>
+        {groupedByCategory
+          ? groupedByCategory.map(({ category, categoryItems }) => (
+              <div key={category.id}>
+                <div className="px-3 py-1.5 bg-gray-50 text-[10px] font-bold uppercase tracking-wider text-gray-500 sticky top-0">
+                  {category.name}
                 </div>
-              )}
-            </div>
-          );
-        })}
+                {categoryItems.map(renderRow)}
+              </div>
+            ))
+          : filtered.map(renderRow)}
       </div>
     </div>
   );
@@ -1931,7 +1980,7 @@ function OfferForm({ initial, onSave, onCancel }) {
   const [description, setDescription] = useState(initial?.description || "");
   const [rate, setRate] = useState(initial?.rate ?? "");
   const [validUntil, setValidUntil] = useState(
-    initial?.valid_until ? initial.valid_until.slice(0, 10) : ""
+    initial?.valid_until ? initial.valid_until.slice(0, 10) : "",
   );
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(initial?.image || "");
@@ -1939,6 +1988,7 @@ function OfferForm({ initial, onSave, onCancel }) {
   const [error, setError] = useState("");
 
   const [allItems, setAllItems] = useState(null);
+  const [categories, setCategories] = useState(null);
   const [selected, setSelected] = useState(() => {
     const map = {};
     (initial?.products || []).forEach((p) => {
@@ -1951,6 +2001,9 @@ function OfferForm({ initial, onSave, onCancel }) {
     getMenuItems()
       .then(setAllItems)
       .catch(() => setAllItems([]));
+    getCategories()
+      .then(setCategories)
+      .catch(() => setCategories([]));
   }, []);
 
   function handleFile(f) {
@@ -2063,6 +2116,7 @@ function OfferForm({ initial, onSave, onCancel }) {
         ) : (
           <ComboProductPicker
             allItems={allItems}
+            categories={categories}
             selected={selected}
             onToggle={toggleItem}
             onQuantityChange={changeQuantity}
@@ -2097,7 +2151,8 @@ function OfferForm({ initial, onSave, onCancel }) {
 
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600 flex items-center gap-1">
-          <Calendar size={12} /> Expire Date (optional — leave blank for no expiry)
+          <Calendar size={12} /> Expire Date (optional — leave blank for no
+          expiry)
         </label>
         <input
           type="date"
@@ -2106,7 +2161,8 @@ function OfferForm({ initial, onSave, onCancel }) {
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none transition-all focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10"
         />
         <p className="text-[11px] text-gray-400 font-semibold pt-0.5">
-          After this date, the combo pack auto-hides from the site even if marked Active.
+          After this date, the combo pack auto-hides from the site even if
+          marked Active.
         </p>
       </div>
 
@@ -2260,7 +2316,9 @@ function OffersTab() {
                       }`}
                     >
                       <Calendar size={10} />
-                      {new Date(o.valid_until) < new Date() ? "Expired" : "Till"}{" "}
+                      {new Date(o.valid_until) < new Date()
+                        ? "Expired"
+                        : "Till"}{" "}
                       {new Date(o.valid_until).toLocaleDateString("en-IN", {
                         day: "2-digit",
                         month: "short",
@@ -2294,10 +2352,14 @@ function OffersTab() {
 function CouponForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
   const [code, setCode] = useState(initial?.code || "");
-  const [discountAmount, setDiscountAmount] = useState(initial?.discount_amount ?? "");
-  const [minOrderAmount, setMinOrderAmount] = useState(initial?.min_order_amount ?? "");
+  const [discountAmount, setDiscountAmount] = useState(
+    initial?.discount_amount ?? "",
+  );
+  const [minOrderAmount, setMinOrderAmount] = useState(
+    initial?.min_order_amount ?? "",
+  );
   const [validUntil, setValidUntil] = useState(
-    initial?.valid_until ? initial.valid_until.slice(0, 10) : ""
+    initial?.valid_until ? initial.valid_until.slice(0, 10) : "",
   );
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(initial?.image || "");
@@ -2311,7 +2373,13 @@ function CouponForm({ initial, onSave, onCancel }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!name.trim() || !code.trim() || discountAmount === "" || minOrderAmount === "") return;
+    if (
+      !name.trim() ||
+      !code.trim() ||
+      discountAmount === "" ||
+      minOrderAmount === ""
+    )
+      return;
     setSaving(true);
     setError("");
     try {
@@ -2338,9 +2406,14 @@ function CouponForm({ initial, onSave, onCancel }) {
     >
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600">
-          Banner Image (optional — canva-style poster; falls back to a plain ₹ OFF card if skipped)
+          Banner Image (optional — canva-style poster; falls back to a plain ₹
+          OFF card if skipped)
         </label>
-        <ImagePicker preview={preview} onFile={handleFile} fallbackIcon={BadgePercent} />
+        <ImagePicker
+          preview={preview}
+          onFile={handleFile}
+          fallbackIcon={BadgePercent}
+        />
       </div>
 
       <div className="space-y-1">
@@ -2398,7 +2471,8 @@ function CouponForm({ initial, onSave, onCancel }) {
 
       <div className="space-y-1">
         <label className="text-xs font-bold text-gray-600 flex items-center gap-1">
-          <Calendar size={12} /> Valid Until (optional — leave blank for no expiry)
+          <Calendar size={12} /> Valid Until (optional — leave blank for no
+          expiry)
         </label>
         <input
           type="date"
@@ -2704,10 +2778,12 @@ function OrdersTab() {
                   {o.coupon_code && (
                     <div className="flex items-center justify-between gap-2 text-xs bg-emerald-50 border border-emerald-100 rounded-xl p-2.5">
                       <span className="font-bold text-emerald-800 flex items-center gap-1.5">
-                        <BadgePercent size={13} /> Coupon Applied: {o.coupon_code}
+                        <BadgePercent size={13} /> Coupon Applied:{" "}
+                        {o.coupon_code}
                       </span>
                       <span className="font-black text-emerald-700">
-                        − ₹{o.discount_amount} (Subtotal ₹{o.total + o.discount_amount})
+                        − ₹{o.discount_amount} (Subtotal ₹
+                        {o.total + o.discount_amount})
                       </span>
                     </div>
                   )}
@@ -2738,26 +2814,31 @@ function OrdersTab() {
                     </span>
                     <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
                       {items.map((it, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between gap-3 px-3 py-2 bg-white text-xs"
-                        >
-                          <span className="text-gray-700 font-medium">
-                            {it.name}
-                            {it.variantName ? (
+                        <div key={idx} className="px-3 py-2 bg-white text-xs">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-gray-700 font-medium">
+                              {it.name}
+                              {it.variantName ? (
+                                <span className="text-gray-400">
+                                  {" "}
+                                  — {it.variantName}
+                                </span>
+                              ) : null}
                               <span className="text-gray-400">
                                 {" "}
-                                — {it.variantName}
+                                × {it.quantity}
                               </span>
-                            ) : null}
-                            <span className="text-gray-400">
-                              {" "}
-                              × {it.quantity}
                             </span>
-                          </span>
-                          <span className="font-bold text-gold-700 shrink-0">
-                            ₹{(it.price ?? 0) * (it.quantity ?? 1)}
-                          </span>
+                            <span className="font-bold text-gold-700 shrink-0">
+                              ₹{(it.price ?? 0) * (it.quantity ?? 1)}
+                            </span>
+                          </div>
+                          {it.comboItems?.length > 0 && (
+                            <p className="text-[10px] text-gray-400 mt-1 leading-snug pl-0.5">
+                              Includes:{" "}
+                              {it.comboItems.map((p) => p.name).join(", ")}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -2779,7 +2860,9 @@ function OrdersTab() {
                     ) : (
                       <span className="text-[11px] text-gray-400 font-semibold">
                         Delete unlocks once the order is marked{" "}
-                        {o.order_type === "Store Pickup" ? "Picked Up" : "Delivered"}
+                        {o.order_type === "Store Pickup"
+                          ? "Picked Up"
+                          : "Delivered"}
                       </span>
                     )}
                   </div>
@@ -2908,10 +2991,18 @@ export default function AdminPage({ onClose }) {
                 ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
                 : "bg-rose-500/10 border-rose-500/40 text-rose-400"
             }`}
-            title={onlineOrderEnabled ? "Online Orders: ON — tap to turn off" : "Online Orders: OFF — tap to turn on"}
+            title={
+              onlineOrderEnabled
+                ? "Online Orders: ON — tap to turn off"
+                : "Online Orders: OFF — tap to turn on"
+            }
           >
             <Power size={14} />
-            {togglingOrder ? "..." : onlineOrderEnabled ? "Online Order: ON" : "Online Order: OFF"}
+            {togglingOrder
+              ? "..."
+              : onlineOrderEnabled
+                ? "Online Order: ON"
+                : "Online Order: OFF"}
           </button>
 
           <button

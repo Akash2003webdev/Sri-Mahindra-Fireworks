@@ -269,7 +269,7 @@ export function uploadBannerImage(file) {
 }
 
 const OFFER_SELECT =
-  "*, offer_items(id, quantity, item:menu_items(id, name, images), variant:menu_item_variants(id, name, price))";
+  "*, offer_items(id, quantity, item:menu_items(id, name, images, sort_order, category:categories(id, name, sort_order)), variant:menu_item_variants(id, name, price))";
 
 function normalizeOffer(row) {
   const products = (row.offer_items || [])
@@ -282,7 +282,23 @@ function normalizeOffer(row) {
       variantId: oi.variant?.id ?? null,
       variantName: oi.variant?.name ?? null,
       price: oi.variant?.price ?? 0,
-    }));
+      // Used only for sorting below (category-wise, then position within
+      // category — matching the order items appear in the Menu Items tab
+      // and on the storefront). Not needed by callers after that.
+      categoryName: oi.item.category?.name ?? null,
+      _categorySortOrder: oi.item.category?.sort_order ?? 0,
+      _itemSortOrder: oi.item.sort_order ?? 0,
+    }))
+    // Category-wise, then by the item's own position within that category —
+    // instead of whatever order Supabase happens to return the offer_items
+    // join in (which isn't guaranteed and used to come out jumbled).
+    .sort((a, b) => {
+      if (a._categorySortOrder !== b._categorySortOrder) {
+        return a._categorySortOrder - b._categorySortOrder;
+      }
+      return a._itemSortOrder - b._itemSortOrder;
+    })
+    .map(({ _categorySortOrder, _itemSortOrder, ...p }) => p);
   const originalTotal = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
   const { offer_items, ...offer } = row;
   const isExpired = Boolean(offer.valid_until) && new Date(offer.valid_until) < new Date();
