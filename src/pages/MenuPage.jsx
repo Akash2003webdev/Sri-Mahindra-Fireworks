@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Minus, ShoppingBag, LayoutGrid, List, ArrowRight, Store } from "lucide-react";
+import { Search, Plus, Minus, ShoppingBag, LayoutGrid, List, Store } from "lucide-react";
 import { getCategories, getMenuItems } from "../lib/api";
 import { useSEO } from "../lib/seo";
 import { useCart } from "../context/CartContext";
@@ -281,50 +281,138 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
             ))}
           </div>
         ) : viewMode === "grid" ? (
-          /* Large Card Grid Layout (Categories) */
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {categories
-              .filter((cat) => {
-                if (selectedCategory && cat.id !== selectedCategory)
-                  return false;
-                return true;
-              })
-              .map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => onSelectCategory(cat)}
-                  className="group relative bg-white rounded-xl border border-stone-200/60 hover:border-gold-300/80 shadow-sm hover:shadow-xl transition-all duration-500 text-left overflow-hidden flex flex-col justify-between focus:outline-none"
-                >
-                  <div className="h-36 md:h-48 w-full overflow-hidden relative bg-stone-100">
-                    <img
-                      src={cat.image || placeholder}
-                      alt={cat.name}
-                      className="w-full h-full object-cover transform scale-100 group-hover:scale-105 transition-transform duration-700 ease-out"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 via-transparent to-transparent opacity-60" />
-                  </div>
+          /* Product Grid View — product cards, category-wise */
+          <div className="space-y-8">
+            {filteredCategories.map((cat) => (
+              <div key={cat.id} className="space-y-4">
+                {/* Purple Category Header Bar */}
+                <div className="bg-[#730ca8] text-white rounded-xl px-5 py-3 shadow-md flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-yellow-300"></div>
+                  <h2 className="font-display font-black text-xs md:text-sm uppercase tracking-wider">
+                    {getCategoryDisplayName(cat.name)}
+                  </h2>
+                </div>
 
-                  <div className="p-4 flex items-center justify-between gap-2 bg-white grow w-full">
-                    <div className="space-y-0.5">
-                      <h3 className="font-semibold text-sm md:text-base text-stone-800 tracking-tight group-hover:text-[#730ca8] transition-colors duration-300">
-                        {getCategoryDisplayName(cat.name)}
-                      </h3>
-                      <p className="text-[11px] md:text-xs font-medium text-stone-400 tracking-wide">
-                        {counts[cat.id] !== undefined
-                          ? `${counts[cat.id]} items`
-                          : "0 items"}
-                      </p>
-                    </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
+                  {cat.filteredItems.map((item) => {
+                    const defaultVariant = item.variants?.[0];
+                    const price = Number(defaultVariant?.price ?? 0);
+                    const actualRate = Number(defaultVariant?.actual_rate ?? 0);
+                    const hasDiscount = actualRate > price;
+                    const discountPercent =
+                      Number(defaultVariant?.discount_percent ?? 0) ||
+                      (hasDiscount ? Math.round(((actualRate - price) / actualRate) * 100) : 0);
+                    const qty = getCartQty(item);
+                    const isOutOfStock =
+                      item.status === "sold_out" || item.stock_status === "out_of_stock";
+                    const isLowStock = !isOutOfStock && item.stock_status === "low_stock";
+                    const canBuy = onlineOrderEnabled && !isOutOfStock;
 
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-stone-50 group-hover:bg-[#730ca8] flex items-center justify-center transition-all duration-300 shrink-0 border border-stone-100 group-hover:border-purple-400">
-                      <ArrowRight
-                        size={14}
-                        className="text-stone-400 group-hover:text-white transform group-hover:translate-x-0.5 transition-all duration-300"
-                      />
-                    </div>
-                  </div>
-                </button>
-              ))}
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-3xl border border-amber-100 shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden flex flex-col"
+                      >
+                        {/* Image */}
+                        <div
+                          onClick={() => onSelectItem?.(item)}
+                          className="relative aspect-[4/3] w-full bg-stone-50 cursor-pointer overflow-hidden"
+                        >
+                          <img
+                            src={item.images?.[0] || logo}
+                            alt={item.name}
+                            loading="lazy"
+                            className={`w-full h-full object-contain p-2 ${isOutOfStock ? "grayscale opacity-60" : ""}`}
+                          />
+                          {isOutOfStock && (
+                            <span className="absolute top-2.5 left-2.5 bg-white/95 text-rose-600 text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1.5 rounded-full shadow">
+                              Out of Stock
+                            </span>
+                          )}
+                          {isLowStock && (
+                            <span className="absolute top-2.5 left-2.5 bg-white/95 text-amber-600 text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1.5 rounded-full shadow">
+                              Few Left
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="p-3.5 md:p-4 flex flex-col flex-1">
+                          <h4
+                            onClick={() => onSelectItem?.(item)}
+                            className="text-sm md:text-base font-extrabold text-stone-900 leading-snug line-clamp-2 min-h-[2.6em] cursor-pointer hover:text-[#730ca8] transition-colors"
+                          >
+                            {item.name}
+                          </h4>
+
+                          {defaultVariant?.name && (
+                            <span className="self-start mt-1.5 text-[10px] md:text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
+                              {defaultVariant.name}
+                            </span>
+                          )}
+
+                          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-3 mb-3.5">
+                            <span className="text-lg md:text-xl font-black text-rose-700">
+                              ₹{price.toLocaleString()}
+                            </span>
+                            {hasDiscount && (
+                              <span className="text-xs md:text-sm font-semibold text-rose-300 line-through">
+                                ₹{actualRate.toLocaleString()}
+                              </span>
+                            )}
+                            {hasDiscount && discountPercent > 0 && (
+                              <span className="text-[10px] md:text-xs font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded-full whitespace-nowrap">
+                                {discountPercent}% OFF
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action */}
+                          <div className="mt-auto">
+                            {canBuy ? (
+                              qty > 0 ? (
+                                <div className="flex items-center justify-between bg-stone-900 text-white rounded-2xl h-11 md:h-12 overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(item, qty - 1)}
+                                    aria-label="Decrease quantity"
+                                    className="w-12 h-full flex items-center justify-center hover:bg-[#730ca8] transition-colors"
+                                  >
+                                    <Minus size={16} />
+                                  </button>
+                                  <span className="text-sm font-black">{qty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(item, qty + 1)}
+                                    aria-label="Increase quantity"
+                                    className="w-12 h-full flex items-center justify-center hover:bg-[#730ca8] transition-colors"
+                                  >
+                                    <Plus size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuantityChange(item, 1)}
+                                  className="w-full h-11 md:h-12 flex items-center justify-center gap-2 bg-stone-900 hover:bg-[#730ca8] text-white text-sm font-bold rounded-2xl active:scale-95 transition-all"
+                                >
+                                  <Plus size={16} /> Add to cart
+                                </button>
+                              )
+                            ) : (
+                              <div className="w-full h-11 md:h-12 flex items-center justify-center gap-1.5 text-xs font-bold text-stone-400 bg-stone-50 border border-stone-200 rounded-2xl">
+                                <Store size={13} />
+                                {isOutOfStock ? "Out of Stock" : "Visit Store"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           /* List View Mode (Matching NPK Quick Purchase Style) */
@@ -393,7 +481,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                               </span>
                               {isOutOfStock && (
                                 <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">
-                                  Sold Out
+                                  Out of Stock
                                 </span>
                               )}
                               {isLowStock && (
@@ -468,7 +556,7 @@ export default function MenuPage({ onSelectCategory, onSelectItem, onToast }) {
                             ) : (
                               <span className="flex items-center gap-1 text-[10px] font-bold text-stone-400 border border-stone-200 rounded-full px-3 py-1.5 whitespace-nowrap">
                                 <Store size={11} />
-                                {isOutOfStock ? "Sold Out" : "Visit Store"}
+                                {isOutOfStock ? "Out of Stock" : "Visit Store"}
                               </span>
                             )}
                           </div>

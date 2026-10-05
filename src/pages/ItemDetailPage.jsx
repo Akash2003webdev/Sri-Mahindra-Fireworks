@@ -247,7 +247,7 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
 
           {isSoldOut && (
             <div className="bg-rose-50 text-rose-600 border border-rose-100 text-sm font-bold rounded-2xl px-4 py-3 text-center shadow-sm">
-              Currently Unavailable (Sold Out)
+              Out of Stock
             </div>
           )}
 

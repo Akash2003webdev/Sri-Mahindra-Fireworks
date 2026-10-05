@@ -167,10 +167,10 @@ function ComboDetailsModal({ offer, onClose, onOrder, onlineOrderEnabled }) {
             </div>
           )}
 
-          {/* Expired badge */}
+          {/* Out of stock badge (expired combo) */}
           {offer?.isExpired && (
             <div className="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md z-10">
-              Expired
+              Out of Stock
             </div>
           )}
 
@@ -357,7 +357,7 @@ function ComboDetailsModal({ offer, onClose, onOrder, onlineOrderEnabled }) {
           {offer?.isExpired ? (
             <div className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-50 text-rose-600 font-bold text-sm border border-rose-100">
               <Tag size={16} />
-              This Combo Has Expired
+              Out of Stock
             </div>
           ) : onlineOrderEnabled ? (
             <button
@@ -410,7 +410,7 @@ function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
           {offer?.isExpired && (
             <div className="absolute inset-0 bg-white/55 flex items-center justify-center">
               <span className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
-                Expired
+                Out of Stock
               </span>
             </div>
           )}
@@ -511,7 +511,7 @@ function OfferCard({ offer, onOrder, onlineOrderEnabled }) {
           {offer?.isExpired ? (
             <div className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-50 text-rose-600 font-bold text-sm border border-rose-100">
               <Tag size={16} />
-              This Combo Has Expired
+              Out of Stock
             </div>
           ) : onlineOrderEnabled ? (
             <button

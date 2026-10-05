@@ -524,7 +524,7 @@ export default function HomePage({
                       {gift.isExpired && (
                         <div className="absolute inset-0 bg-white/55 flex items-center justify-center">
                           <span className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
-                            Expired
+                            Out of Stock
                           </span>
                         </div>
                       )}
@@ -545,7 +545,7 @@ export default function HomePage({
                       </div>
                       {gift.isExpired ? (
                         <div className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 text-rose-600 font-bold text-xs border border-rose-100">
-                          Combo Expired
+                          Out of Stock
                         </div>
                       ) : (
                         <button

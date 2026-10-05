@@ -81,7 +81,7 @@ export default function MenuItemCard({ item, onClick, onToast, badge }) {
         {isSoldOut && (
           <div className="absolute inset-0 bg-ink/60 flex items-center justify-center">
             <span className="text-white text-xs font-bold uppercase tracking-wide">
-              Sold Out
+              Out of Stock
             </span>
           </div>
         )}
