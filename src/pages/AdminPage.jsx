@@ -824,18 +824,41 @@ function CategoriesTab() {
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [reordering, setReordering] = useState(false);
 
+  // ------------------------------------------------------------
+  // LOAD CATEGORIES
+  // ------------------------------------------------------------
   function refresh() {
+    setError(null);
+
     getCategories()
-      .then(setCategories)
+      .then((data) => {
+        // Always display categories using sort_order.
+        const sorted = [...(data || [])].sort(
+          (a, b) =>
+            (a.sort_order ?? 0) - (b.sort_order ?? 0),
+        );
+
+        setCategories(sorted);
+      })
       .catch((e) => setError(e.message));
   }
 
   useEffect(refresh, []);
 
+  // ------------------------------------------------------------
+  // DELETE CATEGORY
+  // ------------------------------------------------------------
   async function handleDelete(id) {
-    if (!confirm("Delete this category? Items inside it will be deleted too."))
+    if (
+      !confirm(
+        "Delete this category? Items inside it will be deleted too.",
+      )
+    ) {
       return;
+    }
+
     try {
       await deleteCategory(id);
       refresh();
@@ -844,6 +867,180 @@ function CategoriesTab() {
     }
   }
 
+  // ------------------------------------------------------------
+  // MOVE CATEGORY UP / DOWN
+  // ------------------------------------------------------------
+  async function moveCategory(index, direction) {
+    if (!categories || categories.length < 2) return;
+
+    const otherIndex =
+      direction === "up" ? index - 1 : index + 1;
+
+    // Already at first / last position.
+    if (
+      otherIndex < 0 ||
+      otherIndex >= categories.length
+    ) {
+      return;
+    }
+
+    const current = categories[index];
+    const other = categories[otherIndex];
+
+    const currentOrder =
+      current.sort_order ?? index;
+
+    const otherOrder =
+      other.sort_order ?? otherIndex;
+
+    setReordering(true);
+
+    try {
+      // Swap sort_order values.
+      await Promise.all([
+        updateCategory(current.id, {
+          sort_order: otherOrder,
+        }),
+
+        updateCategory(other.id, {
+          sort_order: currentOrder,
+        }),
+      ]);
+
+      refresh();
+    } catch (err) {
+      alert(
+        "Couldn't reorder categories: " +
+          err.message,
+      );
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // MOVE CATEGORY TO EXACT POSITION
+  //
+  // Admin enters:
+  // 1 = first
+  // 2 = second
+  // 3 = third
+  // etc.
+  //
+  // Database will be renumbered cleanly:
+  // 0, 1, 2, 3...
+  // ------------------------------------------------------------
+  async function setCategoryPosition(
+    currentIndex,
+    typedPosition,
+  ) {
+    if (!categories || categories.length === 0) {
+      return;
+    }
+
+    const total = categories.length;
+
+    let newIndex =
+      Math.round(Number(typedPosition)) - 1;
+
+    // Invalid number.
+    if (Number.isNaN(newIndex)) {
+      return;
+    }
+
+    // Keep position inside valid range.
+    if (newIndex < 0) {
+      newIndex = 0;
+    }
+
+    if (newIndex > total - 1) {
+      newIndex = total - 1;
+    }
+
+    // Nothing to change.
+    if (newIndex === currentIndex) {
+      return;
+    }
+
+    const reordered = [...categories];
+
+    // Remove selected category.
+    const [movedCategory] =
+      reordered.splice(currentIndex, 1);
+
+    // Insert at new position.
+    reordered.splice(
+      newIndex,
+      0,
+      movedCategory,
+    );
+
+    setReordering(true);
+
+    try {
+      // Re-number all categories.
+      await Promise.all(
+        reordered.map((category, index) =>
+          updateCategory(category.id, {
+            sort_order: index,
+          }),
+        ),
+      );
+
+      refresh();
+    } catch (err) {
+      alert(
+        "Couldn't update category order: " +
+          err.message,
+      );
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // ADD CATEGORY
+  // ------------------------------------------------------------
+  async function handleCreateCategory(fields) {
+    try {
+      await createCategory({
+        ...fields,
+
+        // New category goes to the end.
+        sort_order:
+          categories?.length ?? 0,
+      });
+
+      setAdding(false);
+      refresh();
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // UPDATE CATEGORY
+  // ------------------------------------------------------------
+  async function handleUpdateCategory(
+    categoryId,
+    fields,
+  ) {
+    try {
+      await updateCategory(
+        categoryId,
+        fields,
+      );
+
+      setEditingId(null);
+      refresh();
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
   return (
     <div className="animate-fade-in">
       <SectionHeader
@@ -851,57 +1048,186 @@ function CategoriesTab() {
         onAdd={() => setAdding(true)}
         count={categories?.length}
       />
-      {error && <ErrorRow message={error} />}
-      {!error && !categories && <LoadingRow />}
 
+      {error && (
+        <ErrorRow message={error} />
+      )}
+
+      {!error && !categories && (
+        <LoadingRow />
+      )}
+
+      {/* --------------------------------------------------------
+          ADD CATEGORY FORM
+      --------------------------------------------------------- */}
       {adding && (
         <CategoryForm
-          onSave={async (fields) => {
-            await createCategory(fields);
-            setAdding(false);
-            refresh();
-          }}
+          onSave={handleCreateCategory}
           onCancel={() => setAdding(false)}
         />
       )}
 
+      {/* --------------------------------------------------------
+          CATEGORY LIST
+      --------------------------------------------------------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {categories?.map((c) =>
+        {categories?.map((c, index) =>
           editingId === c.id ? (
-            <div className="col-span-1 sm:col-span-2" key={c.id}>
+            /* --------------------------------------------------
+               EDIT CATEGORY
+            --------------------------------------------------- */
+            <div
+              className="col-span-1 sm:col-span-2"
+              key={c.id}
+            >
               <CategoryForm
                 initial={c}
-                onSave={async (fields) => {
-                  await updateCategory(c.id, fields);
-                  setEditingId(null);
-                  refresh();
-                }}
-                onCancel={() => setEditingId(null)}
+                onSave={(fields) =>
+                  handleUpdateCategory(
+                    c.id,
+                    fields,
+                  )
+                }
+                onCancel={() =>
+                  setEditingId(null)
+                }
               />
             </div>
           ) : (
+            /* --------------------------------------------------
+               CATEGORY CARD
+            --------------------------------------------------- */
             <div
               key={c.id}
-              className="bg-white border border-gray-200 rounded-2xl p-3.5 flex items-center gap-4 shadow-sm hover:border-gray-300 transition-all"
+              className="bg-white border border-gray-200 rounded-2xl p-3.5 flex items-center gap-3 shadow-sm hover:border-gray-300 transition-all"
             >
-              <img
-                src={c.image || "/placeholder.png"}
-                alt={c.name}
-                className="w-14 h-14 rounded-xl object-cover border border-gray-100"
-              />
-              <span className="flex-1 text-sm font-bold text-gray-800">
-                {c.name}
-              </span>
-              <div className="flex gap-1">
+              {/* -----------------------------------------------
+                  ORDER CONTROLS
+              ------------------------------------------------ */}
+              <div className="flex flex-col items-center gap-0.5 shrink-0">
+                {/* UP */}
                 <button
-                  onClick={() => setEditingId(c.id)}
-                  className="text-gray-400 hover:text-gold-500 p-1.5 rounded-xl hover:bg-gold-50 transition-colors cursor-pointer"
+                  type="button"
+                  disabled={
+                    reordering ||
+                    index === 0
+                  }
+                  onClick={() =>
+                    moveCategory(
+                      index,
+                      "up",
+                    )
+                  }
+                  title="Move category up"
+                  className="w-7 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-gold-500 hover:bg-gold-50 disabled:opacity-20 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  <ArrowUp size={14} />
+                </button>
+
+                {/* POSITION */}
+                <input
+                  type="number"
+                  min="1"
+                  max={categories.length}
+                  defaultValue={index + 1}
+                  disabled={reordering}
+                  key={`${c.id}-${index}`}
+                  title="Enter position and press Enter"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value =
+                      e.target.value;
+
+                    if (
+                      value !==
+                      String(index + 1)
+                    ) {
+                      setCategoryPosition(
+                        index,
+                        value,
+                      );
+                    }
+                  }}
+                  className="w-9 h-7 text-center text-[11px] font-black text-gray-700 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+
+                {/* DOWN */}
+                <button
+                  type="button"
+                  disabled={
+                    reordering ||
+                    index ===
+                      categories.length - 1
+                  }
+                  onClick={() =>
+                    moveCategory(
+                      index,
+                      "down",
+                    )
+                  }
+                  title="Move category down"
+                  className="w-7 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-gold-500 hover:bg-gold-50 disabled:opacity-20 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  <ArrowDown size={14} />
+                </button>
+              </div>
+
+              {/* -----------------------------------------------
+                  CATEGORY IMAGE
+              ------------------------------------------------ */}
+              <img
+                src={
+                  c.image ||
+                  "/placeholder.png"
+                }
+                alt={c.name}
+                className="w-14 h-14 rounded-xl object-cover border border-gray-100 shrink-0"
+              />
+
+              {/* -----------------------------------------------
+                  CATEGORY NAME
+              ------------------------------------------------ */}
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-bold text-gray-800 block truncate">
+                  {c.name}
+                </span>
+
+                <span className="text-[10px] text-gray-400 font-semibold">
+                  Position {index + 1}
+                </span>
+              </div>
+
+              {/* -----------------------------------------------
+                  EDIT / DELETE
+              ------------------------------------------------ */}
+              <div className="flex gap-1 shrink-0">
+                {/* EDIT */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingId(c.id)
+                  }
+                  disabled={reordering}
+                  title="Edit category"
+                  className="text-gray-400 hover:text-gold-500 p-1.5 rounded-xl hover:bg-gold-50 transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <Pencil size={15} />
                 </button>
+
+                {/* DELETE */}
                 <button
-                  onClick={() => handleDelete(c.id)}
-                  className="text-gray-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() =>
+                    handleDelete(c.id)
+                  }
+                  disabled={reordering}
+                  title="Delete category"
+                  className="text-gray-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <Trash2 size={15} />
                 </button>
@@ -911,19 +1237,48 @@ function CategoriesTab() {
         )}
       </div>
 
-      {categories && (
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-4 mt-6 text-xs font-semibold text-gray-500">
-          <Layers size={16} className="text-gold-500 shrink-0" />
-          <p>
-            Supabase connection operational. Engine actions ready to layout
-            write queries.
-          </p>
+      {/* --------------------------------------------------------
+          EMPTY STATE
+      --------------------------------------------------------- */}
+      {categories?.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300 text-gray-400 text-sm mt-4">
+          No categories yet — add one to
+          get started.
         </div>
       )}
+
+      {/* --------------------------------------------------------
+          INFO
+      --------------------------------------------------------- */}
+      {categories &&
+        categories.length > 0 && (
+          <div className="flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-4 mt-6 text-xs font-semibold text-gray-500">
+            <Layers
+              size={16}
+              className="text-gold-500 shrink-0 mt-0.5"
+            />
+
+            <div>
+              <p className="font-bold text-gray-600">
+                Category Order
+              </p>
+
+              <p className="mt-0.5">
+                Use ↑ / ↓ to move a category,
+                or enter a position number
+                directly. The order is saved
+                using Supabase{" "}
+                <span className="font-black text-gray-700">
+                  sort_order
+                </span>
+                .
+              </p>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
-
 // --- BRANDS ---
 function BrandForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
