@@ -153,7 +153,11 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
         
         {/* 1. Image / Video Showcase Area */}
         <div className="space-y-3">
-          <div className="relative h-72 sm:h-96 md:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.08)] group bg-black">
+          <div
+            className={`relative h-72 sm:h-96 md:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.08)] ${
+              activeMedia.type === "video" ? "bg-black" : "bg-[#f6f0fa]"
+            }`}
+          >
             {activeMedia.type === "video" ? (
               <video
                 key={item.videos?.[activeMedia.index]}
@@ -163,14 +167,21 @@ export default function ItemDetailPage({ item, onBack, onToast, onGoToCart }) {
                 className="w-full h-full object-contain bg-black"
               />
             ) : (
-              <img
-                src={item.images?.[activeMedia.index] || item.images?.[0] || logo}
-                alt={item.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-            )}
-            {activeMedia.type === "image" && (
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+              <>
+                {/* Blurred copy fills the empty sides so the full image can show uncropped */}
+                <img
+                  src={item.images?.[activeMedia.index] || item.images?.[0] || logo}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-50 pointer-events-none"
+                />
+                <img
+                  key={activeMedia.index}
+                  src={item.images?.[activeMedia.index] || item.images?.[0] || logo}
+                  alt={item.name}
+                  className="relative z-[1] w-full h-full object-contain"
+                />
+              </>
             )}
 
             <button
